@@ -1,0 +1,279 @@
+{% extends "base.html" %} {% block title %} Home {% endblock %} {% block heading
+%}Please see the list of tutors available below{% endblock %} {% block content
+%}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+
+<div id="tutor-list">
+   <div class="row p-6">
+      <!-- Tutor title -->
+      <div id="tutor-title">
+         <div class="row" style="height: 100%">
+            <div class="row">
+               <div id="title-font" class="fw-bold align-self-center">
+                  AI-Assisted Tutor Builder
+               </div>
+            </div>
+         </div>
+      </div>
+
+      <!-- tutor-body -->
+      <div class="mt-5" id="tutor_body">
+         <div class="row gap-5">
+            <!-- playground -->
+            <div class="col-8 p-1" id="playground">
+               <div class="undo-redo-buttons flex justify-start mt-2 ml-3">
+                  <button class="btn btn-secondary btn-lg ml-2 mr-2" id="undo">
+                     Undo
+                  </button>
+                  <button class="btn btn-secondary btn-lg" id="redo">Redo</button>
+                  <div class="keyboard-shortcuts ml-auto mr-10">
+                     <div class="keyboard-key">Shift</div>
+                     <div class="keyboard-plus">+</div>
+                     <div class="keyboard-key">Click</div>
+                     <span class="shortcut-description">Select multiple</span>
+                     <div class="separator"></div>
+                     <div class="keyboard-key">Backspace</div>
+                     <div class="keyboard-plus">+</div>
+                     <div class="keyboard-key">Backspace</div>
+                     <span class="shortcut-description">Remove selected</span>
+                     <div class="separator"></div>
+                     <div class="keyboard-key">Cmd</div>
+                     <div class="keyboard-plus">+</div>
+                     <div class="keyboard-key">C</div>
+                     <span class="shortcut-description">Copy</span>
+                     <div class="separator"></div>
+                     <div class="keyboard-key">Click</div>
+                     <span class="shortcut-description">Paste (in copy mode)</span>
+                     <div class="separator"></div>
+                  </div>
+               </div>
+
+               <div id="page_parent" class="border border-5 rounded-3 mt-4 drop-box">
+                  <div id="loadingSpinner" class="spinner-overlay" style="display: none">
+                     <div class="spinner"></div>
+                  </div>
+
+                  <div id="page">
+                     <div id="draftModal" class="draft-modal">
+                        <div class="draft-modal-content">
+                           <h2>Choose Drafting Method</h2>
+                           <div class="button-container">
+                              <button id="manual">Manually</button>
+                              <button id="aiGuided">With AI Guidance</button>
+                           </div>
+                           <!-- Hidden content for AI guidance specifics -->
+                           <div id="aiSpecs" style="display:none;">
+
+                              <textarea id="specifications" placeholder="Enter tutor specifications here..."></textarea>
+                              <div class="button-container">
+                                 <div class="cancelreg"> 
+                                    <button id="cancel" class="btn btn-danger">Cancel</button>
+                                    <button id="regenerate" class="btn hidden">Regenerate</button>
+                                 </div>
+                                
+                                 <div class="btn-group">
+                                    <button id="back" class=" btn-secondary" style="display: none;">Back</button>
+                                    <button id="next" class=" btn-primary">Next</button>
+                                 </div>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
+                     <ul class="list one gap-3" id="page-container" data-type="page-items"></ul>
+                     <div class="container mx-auto flex flex-col py-1 justify-center items-center" id="title-container">
+                     </div>
+                  </div>
+
+
+               </div>
+               <div id="copyModeLabel" style="
+              display: none;
+              margin-bottom: 15px;
+              position: relative;
+              background-color: #ffcd29;
+              color: white;
+              border-radius: 5px;
+              ">
+                  Copy Mode Enabled
+               </div>
+
+
+
+            </div>
+
+            <div class="col" id="drag_drop">
+               <!-- drag and drop -->
+               <div class="tab-switcher-container mb-3">
+                  <button class="btn btn-dark rounded-button" id="show-td">
+                     Interface-Level Generator
+                  </button>
+                  <button class="btn btn-dark rounded-button" id="show-cg">
+                     Components-Level Generator
+                  </button>
+                  <button class="btn btn-dark rounded-button" id="show-dd">
+                     Drag and Drop
+                  </button>
+               </div>
+
+               <div class="border rounded-2 border-5 p-3 mt-5" id="ai-tutor-designer">
+                  <div class="border rounded-2 border-5">
+                     <div class="bg-warning rounded-2" style="height: 50px; width: 100%">
+                        <div class="row" style="height: 100%">
+                           <div class="fw-bold fs-2 align-self-center">
+                              Interface-Level Generator
+                           </div>
+                        </div>
+                     </div>
+
+                     <div class="d-flex flex-column gap-4 p-3" id="ai-tutor-elements">
+                        <div class="btn btn-light rounded-button" id="tutor-designer-text-area">
+                           <textarea class="form-control tutor-designer-input" placeholder="Enter Tutor content here..."
+                              style="height: 100px"></textarea>
+                        </div>
+                        <button data-type="details" type="button" class="btn btn-generate rounded-button"
+                           id="generate_btn">
+                           Generate
+                        </button>
+                     </div>
+                  </div>
+               </div>
+               <!-- Components Gallery -->
+               <div class="border rounded-2 border-5 p-3 mt-5" id="components-gallery">
+                  <div class="bg-warning rounded-2" style="height: 50px; width: 100%">
+                     <div class="row" style="height: 100%">
+                        <div class="fw-bold fs-2 align-self-center">
+                           Components-Level Generator
+                        </div>
+                     </div>
+                  </div>
+
+                  <!-- Components List -->
+                  <div id="components-list">
+                     <!-- Each component item -->
+                     <div class="component-item border rounded-2 my-3">
+                        <div class="component-header d-flex justify-content-between align-items-center">
+                           <span class="component-name" contenteditable="false"
+                              style="font-weight: bold; font-size: 20px">Component 1</span>
+                           <span class="arrow-toggle">&#9660;</span>
+                        </div>
+
+                        <div class="component-details flex-column border rounded-2">
+                           <!-- Grey area for component details -->
+
+                           <div class="component-details-container bg-light border rounded-2"
+                              id="Component 1-details-container">
+                              <div class="spinner-overlay" style="display: none">
+                                 <div class="spinner"></div>
+                              </div>
+                              <ul class="component-details-content" data-type="page-items"></ul>
+
+                              <div class="container mx-auto flex flex-col py-1 justify-center items-center"></div>
+                           </div>
+                           <!-- Input group with text field and buttons -->
+                           <div class="input-group mt-3 p-2">
+                              <input type="text" class="form-control" placeholder="Descibe the component..."
+                                 aria-label="Component input" />
+                              <div class="input-group-append">
+                                 <button class="btn generate_component_btn rounded-button me-2" type="button">
+                                    Generate
+                                 </button>
+                                 <button class="btn btn-clear rounded-button me-2" type="button">
+                                    Clear
+                                 </button>
+                                 <button class="btn btn-delete rounded-button" type="button">
+                                    Delete
+                                 </button>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+
+                  <!-- Add Component Button -->
+                  <div class="d-flex flex-column add-component text-center my-3">
+                     <button id="add-component-btn" data-type="details" type="button" class="btn btn-add-component">
+                        Add component...
+                     </button>
+                  </div>
+               </div>
+               <div class="border rounded-2 border-5 p-3 mt-5" id="drag-drop-section" xd>
+                  <div>
+                     <div class="bg-warning rounded-2" style="height: 50px; width: 100%">
+                        <div class="row" style="height: 100%">
+                           <div class="fw-bold fs-2 align-self-center">
+                              Drag and Drop
+                           </div>
+                        </div>
+                     </div>
+
+                     <div class="d-flex flex-column gap-4 p-3" id="draggable">
+                        <div data-type="page-items" draggable="true" type="button"
+                           class="btn btn-primary btn-tutor-title rounded-button" id="tutor-title-item">
+                           <p class="page-item" id="page-item"></p>
+                           <p class="removeFromDom">Tutor Title</p>
+                        </div>
+                        <!--<div data-type = "page-row" draggable="true" type="button" class="btn btn-secondary btn-initial-problem rounded-button" id="iniial-problem"><p class="page-item" id="page-item"></p><p class="removeFromDom">Initial Problem</p></div>-->
+                        <div data-type="page-row" draggable="true" type="button"
+                           class="btn btn-success btn-label rounded-button row" id="label">
+                           <p class="page-item align-self-center" id="label-item"></p>
+                           <p class="removeFromDom">Label</p>
+                        </div>
+                        <div data-type="page-row" draggable="true" type="button"
+                           class="btn btn-light btn-input-box-t rounded-button" id="Input-Box1">
+                           <input type="text" class="form-control" placeholder="Text Box" id="input-box" required
+                              style="border: none; box-shadow: none; text-align: center" />
+                        </div>
+
+                        <!-- <div data-type = "page-row" draggable="true" type="button" class="btn btn-danger btn-input-box-v rounded-button" id="input-box-v"><p class="page-item" id="page-item"></p><p class="removeFromDom">Input box(Virtual Keyboard)</p></div>-->
+                        <div data-type="page-row" draggable="true" type="button"
+                           class="btn btn-warning btn-row btn-row-item drop-box rounded-button grid" id="row-item">
+                           <p class="removeFromDom">Row</p>
+                           <ul class="list one grid grid-flow-col gap-1 page-item-ul" data-type="page-row"></ul>
+                        </div>
+                        <div data-type="page-items" draggable="true" type="button"
+                           class="btn btn-info btn-column drop-box rounded-button btn-column" id="column-item">
+                           <p class="removeFromDom">Column</p>
+                           <ul class="list one d-flex page-item-rl-row flex-column gap-2" data-type="page-row"></ul>
+                        </div>
+                        <!-- <div data-type = "page-row" draggable="true" type="button" class="btn btn-dark btn-spacer rounded-button" id="spacer">Spacer</div>-->
+                     </div>
+                     <!-- <div class="d-flex flex-column gap-4 p-3" id="draggable">
+                           <button data-type = "column" type="button" class="btn btn-info btn-column drop-box rounded-button" id="">Column</button>
+                     </div> -->
+                     <div class="d-flex flex-column gap-4 p-3"></div>
+                  </div>
+               </div>
+
+               <div class="border rounded-2 border-5 p-3 mt-5" id="chat-widget">
+                  <div class="bg-warning rounded-2" style="height: 50px; width: 100%">
+                     <div class="row" style="height: 100%">
+                        <div class="fw-bold fs-2 align-self-center">
+                           Chat Widget
+                        </div>
+                     </div>
+                  </div>
+
+                  <div class="d-flex flex-column gap-4 p-3">
+                     <div class="chat-messages border rounded-2 p-2" style="height: 500px; overflow-y: scroll;">
+                        <!-- Messages will be dynamically added here -->
+                     </div>
+                     <div class="input-group">
+                        <input type="text" class="form-control" id="userInput" placeholder="Type your message here..."
+                           aria-label="User input">
+                        <button type="button" id="sendButton"
+                           class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                           Send
+                        </button>
+                     </div>
+                  </div>
+               </div>
+
+
+               <!-- Inspector -->
+            </div>
+         </div>
+      </div>
+
+      {% endblock %}
+   </div>
+</div>

@@ -1,0 +1,13 @@
+flask
+flask-caching
+flask-login
+Flask-Session
+flask-sqlalchemy
+flash
+PyJWT
+pandas
+numpy
+jsondiff
+scipy==1.11.2
+gunicorn
+openai

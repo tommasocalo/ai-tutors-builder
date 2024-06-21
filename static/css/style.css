@@ -1156,6 +1156,21 @@ padding-right: 10px;
   color: white;
 }
 
+#aiSpecs .btn-lucky {
+  background-color: #ffbf58; /* Gray */
+  color: white;
+}
+
+.step-box.locked textarea {
+  border: 2px solid #808080; /* Thick grey border */
+  font-weight: bold;
+}
+
+#aiSpecs .regenerate {
+  background-color: #5fcfde; /* Gray */
+  color: white;
+}
+
 #aiSpecs .btn-danger {
   background-color: #dc3545; /* Red */
   color: white;
@@ -1191,7 +1206,7 @@ padding-right: 10px;
 .buttons-container {
   position: relative;
   top: 15px;
-  right: 0px;
+  right: -3px;
   gap:10px;
   display: flex;
   flex-direction: row;

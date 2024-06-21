@@ -1260,22 +1260,22 @@ $(document).ready(function (e) {
         const draftModal = document.getElementById("draftModal"); // Select the modal element
         draftModal.classList.add("expanded");
 
-
         function parseSteps(response) {
-          // Remove the "Steps: " prefix from the response
-          const stepsString = response.replace(/^Steps: /, '');
-
-          // Split the string into an array of steps
-          const stepsArray = stepsString.split(/,\s*/);
-
-          // Trim any leading or trailing whitespace from each step
-          const trimmedSteps = stepsArray.map(step => step.trim());
-
-          // Remove the numbering from each step
-          const parsedSteps = trimmedSteps.map(step => {
-            return step.replace(/^\d+\.\s*/, '');
-          });
-
+          // Remove any "Steps:" prefix and split by comma or newline
+          const stepsString = response.replace(/^Steps:\s*/, '');
+          const stepsArray = stepsString.split(/,|\n/).map(step => step.trim());
+        
+          // Parse each step
+          const parsedSteps = stepsArray
+            .map(step => {
+              // Remove the numbering and any leading/trailing whitespace
+              const withoutNumber = step.replace(/^\d+\.\s*/, '').trim();
+              
+              // Capitalize the first letter (in case it's not)
+              return withoutNumber.charAt(0).toUpperCase() + withoutNumber.slice(1);
+            })
+            .filter(step => step.length > 0); // Remove any empty steps
+        
           return parsedSteps;
         }
 
@@ -1285,33 +1285,49 @@ $(document).ready(function (e) {
             previousGeneratedSteps.push([...generatedSteps]);
           }
 
-
-
           // Show spinner overlay
           const spinnerOverlay = document.createElement('div');
           spinnerOverlay.classList.add('spinner-overlay');
           spinnerOverlay.innerHTML = '<div class="spinner"></div>';
           aiSpecsFrame.appendChild(spinnerOverlay);
 
+          const lockedStepsInfo = getLockedSteps();
+          const lockedSteps = lockedStepsInfo.map(info => info.step);
+          const endpoint = lockedSteps.length > 0 ? '/generateLockedSteps' : '/generateTutorSteps';
+
           // Call API to regenerate steps
-          fetch('/generateTutorSteps', {
+          fetch(endpoint, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ text: step2Text })
+            body: JSON.stringify({
+              text: step2Text,
+              lockedSteps: lockedSteps
+            })
           })
             .then(response => response.json())
             .then(data => {
               const steps = data.steps;
               const parsedSteps = parseSteps(steps);
-                        // Clear current steps
+
+              // Clear current steps
               while (stepsContainer.firstChild) {
                 stepsContainer.removeChild(stepsContainer.firstChild);
               }
+
               generatedSteps = parsedSteps;
-              parsedSteps.forEach(step => {
-                addStepBox(step);
+
+              // Add steps, preserving locked status based on content
+              parsedSteps.forEach((step) => {
+                const stepBox = addStepBox(step);
+                const matchingLockedStep = lockedStepsInfo.find(info => info.step === step);
+                if (matchingLockedStep) {
+                  const lockButton = stepBox.querySelector('.lock-button');
+                  if (lockButton) {
+                    toggleLock(stepBox, stepBox.querySelector('textarea'), lockButton);
+                  }
+                }
               });
 
               // Hide spinner overlay
@@ -1328,6 +1344,7 @@ $(document).ready(function (e) {
         const aiSpecsTextarea = document.querySelector('#aiSpecs textarea');
         const nextButton = document.getElementById("next");
         const regenButton = document.getElementById("regenerate");
+        const luckyButton = document.getElementById("feelLucky");
         const backButton = document.getElementById("back");
         const cancelButton = document.getElementById("cancel");
         const aiSpecsButtonContainer = document.querySelector('#aiSpecs .button-container');
@@ -1341,6 +1358,19 @@ $(document).ready(function (e) {
         stepsContainer.classList.add("steps-container");
         aiSpecsFrame.insertBefore(stepsContainer, aiSpecsFrame.firstChild); // Add stepsContainer initially
 
+        function toggleLock(stepBox, input, lockButton) {
+          const isLocked = lockButton.querySelector('i').classList.contains('fa-lock');
+          if (isLocked) {
+            // Unlock
+            lockButton.innerHTML = '<i class="fas fa-lock-open"></i>';
+            stepBox.classList.remove('locked');
+          } else {
+            // Lock
+            lockButton.innerHTML = '<i class="fas fa-lock"></i>';
+            stepBox.classList.add('locked');
+          }
+        }
+
         // Function to add a new step box
         function addStepBox(text = "", referenceStepBox = null) {
           const stepBox = document.createElement('div');
@@ -1352,15 +1382,6 @@ $(document).ready(function (e) {
           const buttonsContainer = document.createElement('div');
           buttonsContainer.classList.add('buttons-container');
 
-          const editButton = document.createElement('button');
-          editButton.innerHTML = '<i class="fas fa-pencil-alt"></i>';
-          editButton.classList.add('edit-button', 'btn', 'btn-secondary');
-          editButton.onclick = () => {
-            input.readOnly = !input.readOnly;
-            stepBox.classList.toggle('inactive', input.readOnly);
-          };
-          buttonsContainer.appendChild(editButton);
-
           const deleteButton = document.createElement('button');
           deleteButton.innerHTML = '<i class="fas fa-trash-alt"></i>';
           deleteButton.classList.add('delete-button', 'btn', 'btn-danger');
@@ -1371,10 +1392,18 @@ $(document).ready(function (e) {
           };
           buttonsContainer.appendChild(deleteButton);
 
+          const lockButton = document.createElement('button');
+          lockButton.innerHTML = '<i class="fas fa-lock-open"></i>';
+          lockButton.classList.add('lock-button', 'btn', 'btn-secondary');
+          lockButton.onclick = () => toggleLock(stepBox, input, lockButton);
+          buttonsContainer.appendChild(lockButton);
+
+
+
 
           const input = document.createElement('textarea');
           input.value = text || "Enter step details here...";
-          input.readOnly = true;
+          input.readOnly = false;
           stepBox.appendChild(input);
           buttons_container.appendChild(buttonsContainer);
           buttons_container.classList.add('b-container');
@@ -1392,15 +1421,23 @@ $(document).ready(function (e) {
           }
           updateDeleteButtonState();
 
+          return stepBox; 
         }
 
         // Function to delete a step box
         function deleteStepBox(stepBox) {
           stepsContainer.removeChild(stepBox);
           updateDeleteButtonState();
-
+          return stepBox;
         }
-
+        function getLockedSteps() {
+          const stepBoxes = stepsContainer.querySelectorAll('.step-box');
+          return Array.from(stepBoxes).map((stepBox, index) => ({
+            step: stepBox.querySelector('textarea').value,
+            isLocked: stepBox.classList.contains('locked'),
+            index: index
+          })).filter(step => step.isLocked);
+        }
         function updateDeleteButtonState() {
           const deleteButtons = document.querySelectorAll('.delete-button');
           deleteButtons.forEach(button => {
@@ -1417,6 +1454,7 @@ $(document).ready(function (e) {
             // Hide the third step
             stepsContainer.style.display = 'none';
             regenButton.classList.add("hidden");
+            luckyButton.classList.add("hidden");
             aiSpecsTextarea.style.display = 'block';
             aiSpecsFrame.classList.remove("extra-expanded");
             draftModal.classList.remove("extra-expanded");
@@ -1441,21 +1479,14 @@ $(document).ready(function (e) {
             draftModal.classList.add("extra-expanded");
             aiSpecsButtonContainer.classList.add("extra-expanded");
             regenButton.classList.remove("hidden");
+            luckyButton.classList.remove("hidden");
+
             regenButton.onclick = regenerateSteps;
             aiSpecsTextarea.style.display = 'none';
             nextButton.textContent = "Generate Tutor Drafts"
             backButton.style.display = 'block';
             stepsContainer.style.display = 'flex';
-                  // Add Regenerate button
-            const feelLuckyButton = document.createElement('button');
-            regenerateButton.id = 'regenerate';
-            regenerateButton.className = 'btn btn-primary';
-            regenerateButton.textContent = 'Regenerate';
-            regenerateButton.onclick = regenerateSteps;
-            
-            // Insert Regenerate button before Cancel button
-            const cancelButton = document.getElementById('cancel');
-            aiSpecsButtonContainer.insertBefore(regenerateButton, cancelButton);
+            // Add Regenerate button
             // Add Regenerate but
             if (generatedSteps.length === 0) {
               // Only add the initial step if there are no generated steps
@@ -1487,7 +1518,7 @@ $(document).ready(function (e) {
               spinnerOverlay.classList.add('spinner-overlay');
               spinnerOverlay.innerHTML = '<div class="spinner"></div>';
               aiSpecsFrame.appendChild(spinnerOverlay);
-      
+
               // Call API to generate steps
               fetch('/generateTutorSteps', {
                 method: 'POST',
@@ -1496,22 +1527,22 @@ $(document).ready(function (e) {
                 },
                 body: JSON.stringify({ text: step2Text })
               })
-              .then(response => response.json())
-              .then(data => {
-                const steps = data.steps;
-                const parsedSteps = parseSteps(steps);
-                generatedSteps = parsedSteps;
-      
-                // Hide spinner overlay
-                aiSpecsFrame.removeChild(spinnerOverlay);
-      
-                currentStep++;
-                updateStep();
-              })
-              .catch(error => {
-                console.error('Error:', error);
-                aiSpecsFrame.removeChild(spinnerOverlay);
-              });
+                .then(response => response.json())
+                .then(data => {
+                  const steps = data.steps;
+                  const parsedSteps = parseSteps(steps);
+                  generatedSteps = parsedSteps;
+
+                  // Hide spinner overlay
+                  aiSpecsFrame.removeChild(spinnerOverlay);
+
+                  currentStep++;
+                  updateStep();
+                })
+                .catch(error => {
+                  console.error('Error:', error);
+                  aiSpecsFrame.removeChild(spinnerOverlay);
+                });
             } else {
               currentStep++;
               updateStep();
@@ -1521,7 +1552,7 @@ $(document).ready(function (e) {
             updateStep();
           }
         };
-      
+
         backButton.onclick = function () {
           if (currentStep === 3) {
             while (stepsContainer.firstChild) {
@@ -1545,11 +1576,6 @@ $(document).ready(function (e) {
         document.getElementById("aiSpecs").style.display = 'none'; // Hide AI specs
       }
 
-      // Handle elaborate button (additional functionality can be added as needed)
-      document.getElementById("elaborate").onclick = function () {
-        console.log("Elaboration requested");
-        // Implement further actions
-      }
 
       function addMessageToChat(sender, text) {
         var chatMessages = document.querySelector('.chat-messages');

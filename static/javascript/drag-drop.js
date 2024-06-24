@@ -1134,6 +1134,17 @@ $(document).ready(function (e) {
     (function () {
 
 
+
+      let currentStep = 0;
+      let step1Text = '';
+      let step2Text = '';
+      let generatedSteps = [];
+      let aiGuidedActive = false
+      let stepsContainer;
+      let gridContainer;
+
+
+
       document.addEventListener("dblclick", function (e) {
         // Check if the clicked target is a component name or a page item
         if (e.target.classList.contains("component-name") || e.target.classList.contains("page-item")) {
@@ -1233,130 +1244,40 @@ $(document).ready(function (e) {
         chatMessages.scrollTop = chatMessages.scrollHeight; // Scroll to the latest message
       }
 
-      var modal = document.getElementById("draftModal");
 
-      // Initially show the modal
-      modal.style.display = "block";
 
-      // Close modal function
-      function closeModal() {
-        modal.style.display = "none";
-      }
 
       // Event listener for close button
 
-      // Handle manual button
-      document.getElementById("manual").onclick = function () {
-        console.log("Manual drafting selected");
-        closeModal();
+
+      function saveState() {
+        const state = {
+          currentStep: currentStep,
+          step1Text: step1Text,
+          step2Text: step2Text,
+          generatedSteps: generatedSteps,
+          stepsContainerHTML: (stepsContainer && stepsContainer.innerHTML),
+          generatedDrafts: (gridContainer && gridContainer.innerHTML),
+          aiGuidedActive: true
+        };
+        localStorage.setItem('aiGuidedState', JSON.stringify(state));
       }
 
-      document.getElementById("aiGuided").onclick = function () {
-        console.log("AI-guided drafting selected");
-        document.querySelector('.button-container').style.display = 'none'; // Hide initial buttons
-        const aiSpecsFrame = document.getElementById("aiSpecs");
-        aiSpecsFrame.style.display = 'block';
-        aiSpecsFrame.classList.add("expanded");
-        const draftModal = document.getElementById("draftModal"); // Select the modal element
-        draftModal.classList.add("expanded");
+      function loadState() {
+        const savedState = JSON.parse(localStorage.getItem('aiGuidedState'));
+        return savedState || null;
+      }
 
-        function parseSteps(response) {
-          // Remove any "Steps:" prefix and split by comma or newline
-          const stepsString = response.replace(/^Steps:\s*/, '');
-          const stepsArray = stepsString.split(/,|\n/).map(step => step.trim());
-        
-          // Parse each step
-          const parsedSteps = stepsArray
-            .map(step => {
-              // Remove the numbering and any leading/trailing whitespace
-              const withoutNumber = step.replace(/^\d+\.\s*/, '').trim();
-              
-              // Capitalize the first letter (in case it's not)
-              return withoutNumber.charAt(0).toUpperCase() + withoutNumber.slice(1);
-            })
-            .filter(step => step.length > 0); // Remove any empty steps
-        
-          return parsedSteps;
+
+
+      function initOrResume() {
+
+
+
+        // Close modal function
+        function closeModal() {
+          modal.style.display = "none";
         }
-
-        function regenerateSteps() {
-          // Store current steps in previousGeneratedSteps array
-          if (generatedSteps.length > 0) {
-            previousGeneratedSteps.push([...generatedSteps]);
-          }
-
-          // Show spinner overlay
-          const spinnerOverlay = document.createElement('div');
-          spinnerOverlay.classList.add('spinner-overlay');
-          spinnerOverlay.innerHTML = '<div class="spinner"></div>';
-          aiSpecsFrame.appendChild(spinnerOverlay);
-
-          const lockedStepsInfo = getLockedSteps();
-          const lockedSteps = lockedStepsInfo.map(info => info.step);
-          const endpoint = lockedSteps.length > 0 ? '/generateLockedSteps' : '/generateTutorSteps';
-
-          // Call API to regenerate steps
-          fetch(endpoint, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              text: step2Text,
-              lockedSteps: lockedSteps
-            })
-          })
-            .then(response => response.json())
-            .then(data => {
-              const steps = data.steps;
-              const parsedSteps = parseSteps(steps);
-
-              // Clear current steps
-              while (stepsContainer.firstChild) {
-                stepsContainer.removeChild(stepsContainer.firstChild);
-              }
-
-              generatedSteps = parsedSteps;
-
-              // Add steps, preserving locked status based on content
-              parsedSteps.forEach((step) => {
-                const stepBox = addStepBox(step);
-                const matchingLockedStep = lockedStepsInfo.find(info => info.step === step);
-                if (matchingLockedStep) {
-                  const lockButton = stepBox.querySelector('.lock-button');
-                  if (lockButton) {
-                    toggleLock(stepBox, stepBox.querySelector('textarea'), lockButton);
-                  }
-                }
-              });
-
-              // Hide spinner overlay
-              aiSpecsFrame.removeChild(spinnerOverlay);
-            })
-            .catch(error => {
-              console.error('Error:', error);
-              aiSpecsFrame.removeChild(spinnerOverlay);
-            });
-        }
-        let currentStep = 1;
-        let stepCounter = 0;
-
-        const aiSpecsTextarea = document.querySelector('#aiSpecs textarea');
-        const nextButton = document.getElementById("next");
-        const regenButton = document.getElementById("regenerate");
-        const luckyButton = document.getElementById("feelLucky");
-        const backButton = document.getElementById("back");
-        const cancelButton = document.getElementById("cancel");
-        const aiSpecsButtonContainer = document.querySelector('#aiSpecs .button-container');
-        let step1Text = '';
-        let step2Text = '';
-        let generatedSteps = [];
-        let previousGeneratedSteps = []; // Array to store previous sets of generated steps
-
-        const stepsContainer = document.createElement('div');
-        stepsContainer.id = 'stepsContainer';
-        stepsContainer.classList.add("steps-container");
-        aiSpecsFrame.insertBefore(stepsContainer, aiSpecsFrame.firstChild); // Add stepsContainer initially
 
         function toggleLock(stepBox, input, lockButton) {
           const isLocked = lockButton.querySelector('i').classList.contains('fa-lock');
@@ -1421,7 +1342,7 @@ $(document).ready(function (e) {
           }
           updateDeleteButtonState();
 
-          return stepBox; 
+          return stepBox;
         }
 
         // Function to delete a step box
@@ -1452,6 +1373,7 @@ $(document).ready(function (e) {
         function updateStep() {
           if (currentStep === 1 || currentStep === 2) {
             // Hide the third step
+
             stepsContainer.style.display = 'none';
             regenButton.classList.add("hidden");
             luckyButton.classList.add("hidden");
@@ -1484,6 +1406,7 @@ $(document).ready(function (e) {
             regenButton.onclick = regenerateSteps;
             aiSpecsTextarea.style.display = 'none';
             nextButton.textContent = "Generate Tutor Drafts"
+            nextButton.onclick = generateLayoutDrafts;
             backButton.style.display = 'block';
             stepsContainer.style.display = 'flex';
             // Add Regenerate button
@@ -1502,13 +1425,163 @@ $(document).ready(function (e) {
           }
         }
 
-        // Initial step setup
-        updateStep();
 
-        nextButton.onclick = function () {
+
+        function generateLayoutDrafts() {
+          const currentSteps = Array.from(stepsContainer.querySelectorAll('.step-box textarea'))
+            .map(textarea => textarea.value);
+
+          const spinnerOverlay = document.createElement('div');
+          spinnerOverlay.classList.add('spinner-overlay');
+          spinnerOverlay.innerHTML = '<div class="spinner"></div>';
+          aiSpecsFrame.appendChild(spinnerOverlay);
+
+          fetch('/generateTutorLayoutsFromSteps', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              text: step2Text,
+              steps: currentSteps
+            })
+          })
+            .then(response => response.json())
+            .then(data => {
+              aiSpecsFrame.removeChild(spinnerOverlay);
+
+              const gridContainer = document.createElement('div');
+              gridContainer.classList.add('grid-container');
+
+              data.layouts.forEach((layout, index) => {
+                const gridItem = document.createElement('div');
+                gridItem.classList.add('grid-item');
+
+                const layoutContent = document.createElement('div');
+                layoutContent.classList.add('layout-content');
+
+                const miniatureWrapper = document.createElement('div');
+                miniatureWrapper.classList.add('miniature-wrapper');
+                miniatureWrapper.innerHTML = buildHTMLFromCompactRepresentation(layout);
+
+                layoutContent.appendChild(miniatureWrapper);
+
+                const layoutTitle = document.createElement('div');
+                layoutTitle.classList.add('layout-title');
+                layoutTitle.textContent = `Layout ${index + 1}`;
+
+                gridItem.appendChild(layoutTitle);
+                gridItem.appendChild(layoutContent);
+                gridContainer.appendChild(gridItem);
+              });
+
+              // Add the "add layout" grid item
+              const addLayoutItem = document.createElement('div');
+              addLayoutItem.classList.add('grid-item', 'add-layout-item');
+              addLayoutItem.innerHTML = '<span>+</span>';
+              addLayoutItem.onclick = function () {
+                console.log('Add new layout clicked');
+                // Implement the logic to generate a new layout here
+              };
+              gridContainer.appendChild(addLayoutItem);
+
+              const pageContainer = document.getElementById('page-container');
+              pageContainer.innerHTML = ''; // Clear existing content
+              pageContainer.appendChild(gridContainer);
+              currentStep = 4;
+              closeModal();
+            })
+            .catch(error => {
+              console.error('Error:', error);
+              aiSpecsFrame.removeChild(spinnerOverlay);
+            });
+        }
+
+        function parseSteps(response) {
+          // Remove any "Steps:" prefix and split by comma or newline
+          const stepsString = response.replace(/^Steps:\s*/, '');
+          const stepsArray = stepsString.split(/,|\n/).map(step => step.trim());
+
+          // Parse each step
+          const parsedSteps = stepsArray
+            .map(step => {
+              // Remove the numbering and any leading/trailing whitespace
+              const withoutNumber = step.replace(/^\d+\.\s*/, '').trim();
+
+              // Capitalize the first letter (in case it's not)
+              return withoutNumber.charAt(0).toUpperCase() + withoutNumber.slice(1);
+            })
+            .filter(step => step.length > 0); // Remove any empty steps
+
+          return parsedSteps;
+        }
+
+        function regenerateSteps() {
+          // Store current steps in previousGeneratedSteps array
+          if (generatedSteps.length > 0) {
+            previousGeneratedSteps.push([...generatedSteps]);
+          }
+
+          // Show spinner overlay
+          const spinnerOverlay = document.createElement('div');
+          spinnerOverlay.classList.add('spinner-overlay');
+          spinnerOverlay.innerHTML = '<div class="spinner"></div>';
+          aiSpecsFrame.appendChild(spinnerOverlay);
+
+          const lockedStepsInfo = getLockedSteps();
+          const lockedSteps = lockedStepsInfo.map(info => info.step);
+          const endpoint = lockedSteps.length > 0 ? '/generateLockedSteps' : '/generateTutorSteps';
+
+          // Call API to regenerate steps
+          fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              text: step2Text,
+              lockedSteps: lockedSteps
+            })
+          })
+            .then(response => response.json())
+            .then(data => {
+              const steps = data.steps;
+              const parsedSteps = parseSteps(steps);
+
+              // Clear current steps
+              while (stepsContainer.firstChild) {
+                stepsContainer.removeChild(stepsContainer.firstChild);
+              }
+
+              generatedSteps = parsedSteps;
+
+              // Add steps, preserving locked status based on content
+              parsedSteps.forEach((step) => {
+                const stepBox = addStepBox(step);
+                const matchingLockedStep = lockedStepsInfo.find(info => info.step === step);
+                if (matchingLockedStep) {
+                  const lockButton = stepBox.querySelector('.lock-button');
+                  if (lockButton) {
+                    toggleLock(stepBox, stepBox.querySelector('textarea'), lockButton);
+                  }
+                }
+              });
+
+              // Hide spinner overlay
+              aiSpecsFrame.removeChild(spinnerOverlay);
+            })
+            .catch(error => {
+              console.error('Error:', error);
+              aiSpecsFrame.removeChild(spinnerOverlay);
+            });
+        }
+
+
+        function nextStep() {
           if (currentStep === 1) {
             step1Text = aiSpecsTextarea.value;
             currentStep++;
+            saveState()
             updateStep();
           } else if (currentStep === 2) {
             step2Text = aiSpecsTextarea.value;
@@ -1537,6 +1610,187 @@ $(document).ready(function (e) {
                   aiSpecsFrame.removeChild(spinnerOverlay);
 
                   currentStep++;
+                  saveState()
+                  updateStep();
+
+                })
+                .catch(error => {
+                  console.error('Error:', error);
+                  aiSpecsFrame.removeChild(spinnerOverlay);
+                });
+            } else {
+              currentStep++;
+              saveState()
+              updateStep();
+            }
+          } else {
+            currentStep++;
+            saveState()
+            updateStep();
+          }
+        }
+
+        function backStep() {
+          if (currentStep === 3) {
+            while (stepsContainer.firstChild) {
+              stepsContainer.removeChild(stepsContainer.firstChild);
+            }
+
+          } else if (currentStep === 2) {
+            step2Text = aiSpecsTextarea.value;
+          }
+          currentStep--;
+          saveState()
+          updateStep();
+        }
+
+        currentStep = 0;
+        stepCounter = 0;
+
+        const aiSpecsFrame = document.getElementById("aiSpecs");
+        aiSpecsFrame.style.display = 'block';
+        aiSpecsFrame.classList.add("expanded");
+        const draftModal = document.getElementById("draftModal"); // Select the 
+        const aiSpecsTextarea = document.querySelector('#aiSpecs textarea');
+        const nextButton = document.getElementById("next");
+        const regenButton = document.getElementById("regenerate");
+        const luckyButton = document.getElementById("feelLucky");
+        const backButton = document.getElementById("back");
+        const cancelButton = document.getElementById("cancel");
+        const aiSpecsButtonContainer = document.querySelector('#aiSpecs .button-container');
+
+        step1Text = '';
+        step2Text = '';
+        generatedSteps = [];
+        previousGeneratedSteps = []; // Array to store previous sets of generated steps
+
+        const stepsContainer = document.createElement('div');
+        stepsContainer.id = 'stepsContainer';
+        stepsContainer.classList.add("steps-container");
+        aiSpecsFrame.insertBefore(stepsContainer, aiSpecsFrame.firstChild); // Add stepsContainer initially
+
+
+        const savedState = loadState();
+
+        function load_step(step) {
+          if (step === 0) {
+            var modal = document.getElementById("draftModal");
+            modal.style.display = "block";
+            document.getElementById("aiGuided").onclick = function () {
+              currentStep = 1
+              saveState()
+              load_step(currentStep);
+          }}
+          else if (step === 1 || step === 2) {
+           
+            draftModal.style.display = "block";
+            document.querySelector('.button-container').style.display = 'none'; // 
+            aiSpecsFrame.style.display = 'block';
+            aiSpecsFrame.classList.add("expanded");
+            draftModal.classList.add("expanded");
+            aiSpecsTextarea.style.display = 'block';
+            stepsContainer.style.display = 'none';
+            regenButton.classList.add("hidden");
+            luckyButton.classList.add("hidden");
+            aiSpecsFrame.classList.remove("extra-expanded");
+            draftModal.classList.remove("extra-expanded");
+            aiSpecsButtonContainer.classList.remove("extra-expanded")
+            if (step === 1) {
+              currentStep = 1
+              aiSpecsTextarea.placeholder = "Enter the initial question here...";
+              backButton.style.display = 'none'; // Hide "Back" on first step
+              aiSpecsTextarea.value = step1Text;
+            } else {
+              currentStep = 2
+              aiSpecsTextarea.placeholder = "Enter additional instructions or questions here...";
+              backButton.style.display = 'block';
+              aiSpecsTextarea.value = step2Text;
+
+            }
+            cancelButton.style.display = 'block';
+            nextButton.style.display = 'block';
+            nextButton.textContent = "Next"; // Reset "Next" button text
+          }
+          else if (step === 3) {
+            console.log(currentStep)
+            currentStep = 3
+            // Show the third step
+            document.querySelector('.button-container').style.display = 'none'; // 
+
+            draftModal.style.display = "block";
+
+            aiSpecsFrame.classList.add("extra-expanded");
+            draftModal.classList.add("extra-expanded");
+            aiSpecsButtonContainer.classList.add("extra-expanded");
+            regenButton.classList.remove("hidden");
+            luckyButton.classList.remove("hidden");
+
+            regenButton.onclick = regenerateSteps;
+            aiSpecsTextarea.style.display = 'none';
+            nextButton.textContent = "Generate Tutor Drafts"
+            nextButton.onclick = generateLayoutDrafts;
+            backButton.style.display = 'block';
+
+            stepsContainer.style.display = 'flex';
+            // Add Regenerate button
+            // Add Regenerate but
+            if (generatedSteps.length === 0) {
+              // Only add the initial step if there are no generated steps
+
+              addStepBox();
+            } else {
+
+              // Add the generated steps to the stepsContainer
+              generatedSteps.forEach(step => {
+                addStepBox(step);
+              });
+            }
+          }
+
+          else if (step === 4) {
+            currentStep = 4
+            // Directly show the grid view without opening the modal
+            const pageContainer = document.getElementById('page-container');
+            pageContainer.innerHTML = savedState.gridContainerHTML;
+          }
+
+        }
+
+
+        nextButton.onclick = function () {
+          if (currentStep === 1) {
+            step1Text = aiSpecsTextarea.value;
+            currentStep++;
+            saveState()
+            updateStep();
+          } else if (currentStep === 2) {
+            step2Text = aiSpecsTextarea.value;
+            if (generatedSteps.length === 0) {
+              // Show spinner overlay in step 2
+              const spinnerOverlay = document.createElement('div');
+              spinnerOverlay.classList.add('spinner-overlay');
+              spinnerOverlay.innerHTML = '<div class="spinner"></div>';
+              aiSpecsFrame.appendChild(spinnerOverlay);
+
+              // Call API to generate steps
+              fetch('/generateTutorSteps', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ text: step2Text })
+              })
+                .then(response => response.json())
+                .then(data => {
+                  const steps = data.steps;
+                  const parsedSteps = parseSteps(steps);
+                  generatedSteps = parsedSteps;
+
+                  // Hide spinner overlay
+                  aiSpecsFrame.removeChild(spinnerOverlay);
+
+                  currentStep++;
+                  saveState()
                   updateStep();
                 })
                 .catch(error => {
@@ -1545,10 +1799,12 @@ $(document).ready(function (e) {
                 });
             } else {
               currentStep++;
+              saveState()
               updateStep();
             }
           } else {
             currentStep++;
+            saveState()
             updateStep();
           }
         };
@@ -1563,18 +1819,69 @@ $(document).ready(function (e) {
             step2Text = aiSpecsTextarea.value;
           }
           currentStep--;
+          saveState()
           updateStep();
         };
 
 
+        if (savedState && savedState.aiGuidedActive) {
+          currentStep = savedState.currentStep;
+          step1Text = savedState.step1Text;
+          step2Text = savedState.step2Text;
+          generatedSteps = savedState.generatedSteps;
+          aiGuidedActive = savedState.aiGuidedActive;
+          console.log(generatedSteps)
+          load_step(currentStep)
+
+        }
+        else {
+          // Start a new AI-guided drafting session
+          var modal = document.getElementById("draftModal");
+          modal.style.display = "block";
+          document.getElementById("aiGuided").onclick = function () {
+            currentStep = 1
+            saveState()
+            load_step(currentStep);
+
+          };
+
+        }
+
+
+
+
+        // Handle cancel button in AI specs
+        document.getElementById("cancel").onclick = function () {
+          aiSpecsFrame.classList.remove("expanded");
+          draftModal.classList.remove("expanded");
+          document.querySelector('.button-container').style.display = 'flex'; // Show initial buttons
+          document.getElementById("aiSpecs").style.display = 'none'; // Hide AI specs
+          currentStep = 0
+          saveState()
+        }
+
+
+
+      }
+
+      // Close modal function
+      function closeModal() {
+        draftModal.style.display = "none";
+      }
+      // Handle manual button
+      document.getElementById("manual").onclick = function () {
+        console.log("Manual drafting selected");
+        closeModal();
       }
 
 
-      // Handle cancel button in AI specs
-      document.getElementById("cancel").onclick = function () {
-        document.querySelector('.button-container').style.display = 'flex'; // Show initial buttons
-        document.getElementById("aiSpecs").style.display = 'none'; // Hide AI specs
-      }
+
+
+
+
+
+
+      initOrResume();
 
 
       function addMessageToChat(sender, text) {

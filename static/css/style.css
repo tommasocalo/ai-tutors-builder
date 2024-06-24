@@ -1237,4 +1237,57 @@ padding-right: 10px;
   opacity: 0.5;
   pointer-events: none;
 }
+.grid-container {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  padding: 20px;
+}
 
+.grid-item {
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 400px; /* Fixed height for all items */
+}
+
+.layout-title {
+  background-color: #f0f0f0;
+  padding: 5px 10px;
+  font-weight: bold;
+}
+
+.layout-content {
+  padding: 10px;
+  overflow: hidden;
+  height: 400px; /* Adjust as needed */
+}
+
+.miniature-wrapper {
+  transform: scale(0.4);
+  transform-origin: top left;
+  width: 250%;
+  height: 400%;
+  pointer-events: none;
+}
+
+.miniature-wrapper input,
+.miniature-wrapper select,
+.miniature-wrapper textarea {
+  pointer-events: none;
+}
+
+.add-layout-item {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 48px;
+  background-color: #f0f0f0;
+  cursor: pointer;
+}
+
+.add-layout-item:hover {
+  background-color: #e0e0e0;
+}

@@ -1141,7 +1141,7 @@ $(document).ready(function (e) {
       let generatedSteps = [];
       let aiGuidedActive = false
       let stepsContainer;
-      let gridContainer;
+      let generatedDrafts;
 
 
 
@@ -1257,7 +1257,7 @@ $(document).ready(function (e) {
           step2Text: step2Text,
           generatedSteps: generatedSteps,
           stepsContainerHTML: (stepsContainer && stepsContainer.innerHTML),
-          generatedDrafts: (gridContainer && gridContainer.innerHTML),
+          generatedDrafts: generatedDrafts,
           aiGuidedActive: true
         };
         localStorage.setItem('aiGuidedState', JSON.stringify(state));
@@ -1276,7 +1276,8 @@ $(document).ready(function (e) {
 
         // Close modal function
         function closeModal() {
-          modal.style.display = "none";
+          const draftModal = document.getElementById("draftModal");
+          draftModal.style.display = "none";
         }
 
         function toggleLock(stepBox, input, lockButton) {
@@ -1426,8 +1427,180 @@ $(document).ready(function (e) {
         }
 
 
+        let activeCursor = null;
+
+        function toggleCursor(cursorType, button, index) {
+            if (activeCursor === cursorType) {
+                // Deactivate the current cursor
+                document.body.classList.remove(`${activeCursor}-cursor`);
+                button.classList.remove('active');
+                activeCursor = null;
+            } else {
+                // Deactivate the previous cursor if any
+                if (activeCursor) {
+                    document.body.classList.remove(`${activeCursor}-cursor`);
+                    document.querySelector(`.bottom-bar button.active`).classList.remove('active');
+                }
+                // Activate the new cursor
+                document.body.classList.add(`${cursorType}-cursor`);
+                button.classList.add('active');
+                activeCursor = cursorType;
+            }
+        }
+
+        function pinLayout(event,index) {
+          toggleCursor('pinning', event.target, index);
+
+
+          console.log(`Pinned layout ${index + 1}`);
+          // Implement pin functionality
+        }
+        
+        function likeLayout(event,index) {
+          toggleCursor('liking', event.target, index);
+
+
+          console.log(`Liked layout ${index + 1}`);
+          // Implement like functionality
+        }
+        
+        function useLayout(index) {
+          console.log(`Using layout ${index + 1}`);
+          // Implement use layout functionality
+        }
+        
+        function generateFromPreferences() {
+          console.log('Generating from preferences');
+          // Implement generate from preferences functionality
+        }
+
+
+        function showFullLayout(index) {
+          const pageContainer = document.getElementById('page-container');
+          pageContainer.innerHTML = ''; // Clear existing content
+
+          const fullLayoutContainer = document.createElement('div');
+          fullLayoutContainer.classList.add('full-layout-container');
+
+          const navigationBar = document.createElement('div');
+          navigationBar.classList.add('navigation-bar');
+
+          const backButton = document.createElement('button');
+          backButton.textContent = 'Back to Grid';
+          backButton.onclick = loadLayoutDraft;
+          navigationBar.appendChild(backButton);
+
+          const titleContainer = document.createElement('div');
+          titleContainer.classList.add('title-container');
+
+          const leftArrow = document.createElement('button');
+          leftArrow.textContent = '←';
+          leftArrow.onclick = () => showFullLayout((index - 1 + generatedDrafts.length) % generatedDrafts.length);
+          titleContainer.appendChild(leftArrow);
+
+          const layoutTitle = document.createElement('h2');
+          layoutTitle.textContent = `Layout ${index + 1}`;
+          titleContainer.appendChild(layoutTitle);
+
+          const rightArrow = document.createElement('button');
+          rightArrow.textContent = '→';
+          rightArrow.onclick = () => showFullLayout((index + 1) % generatedDrafts.length);
+          titleContainer.appendChild(rightArrow);
+
+          navigationBar.appendChild(titleContainer);
+          fullLayoutContainer.appendChild(navigationBar);
+
+          const layoutContent = document.createElement('div');
+          layoutContent.classList.add('full-layout-content');
+          layoutContent.innerHTML = buildHTMLFromCompactRepresentation(generatedDrafts[index]);
+
+          const bottomBar = document.createElement('div');
+          bottomBar.classList.add('bottom-bar');
+
+          const leftButtonGroup = document.createElement('div');
+          leftButtonGroup.classList.add('button-group');
+
+          const pinButton = document.createElement('button');
+          pinButton.textContent = 'Pin';
+          pinButton.onclick = (event) => pinLayout(event, index);
+          leftButtonGroup.appendChild(pinButton);
+      
+          const likeButton = document.createElement('button');
+          likeButton.textContent = 'I Like';
+          likeButton.onclick = (event) => likeLayout(event, index);
+          leftButtonGroup.appendChild(likeButton);
+      
+
+          const rightButtonGroup = document.createElement('div');
+          rightButtonGroup.classList.add('button-group');
+
+          const useLayoutButton = document.createElement('button');
+          useLayoutButton.textContent = 'Use This Layout';
+          useLayoutButton.onclick = () => useLayout(index);
+          rightButtonGroup.appendChild(useLayoutButton);
+
+          const generateFromPreferencesButton = document.createElement('button');
+          generateFromPreferencesButton.textContent = 'Generate from Preferences';
+          generateFromPreferencesButton.onclick = generateFromPreferences;
+          rightButtonGroup.appendChild(generateFromPreferencesButton);
+
+          bottomBar.appendChild(leftButtonGroup);
+          bottomBar.appendChild(rightButtonGroup);
+
+          fullLayoutContainer.appendChild(layoutContent);
+          fullLayoutContainer.appendChild(bottomBar);
+
+          pageContainer.appendChild(fullLayoutContainer);
+        }
+
+        function loadLayoutDraft() {
+          const gridContainer = document.createElement('div');
+          gridContainer.classList.add('grid-container');
+
+          generatedDrafts.forEach((layout, index) => {
+            const gridItem = document.createElement('div');
+            gridItem.classList.add('grid-item');
+
+            const layoutContent = document.createElement('div');
+            layoutContent.classList.add('layout-content');
+
+            const miniatureWrapper = document.createElement('div');
+            miniatureWrapper.classList.add('miniature-wrapper');
+            miniatureWrapper.innerHTML = buildHTMLFromCompactRepresentation(layout);
+
+            layoutContent.appendChild(miniatureWrapper);
+
+            const layoutTitle = document.createElement('div');
+            layoutTitle.classList.add('layout-title');
+            layoutTitle.textContent = `Layout ${index + 1}`;
+
+            gridItem.appendChild(layoutTitle);
+            gridItem.appendChild(layoutContent);
+            gridItem.onclick = () => showFullLayout(index);
+            gridContainer.appendChild(gridItem);
+          });
+
+          // Add the "add layout" grid item
+          const addLayoutItem = document.createElement('div');
+          addLayoutItem.classList.add('grid-item', 'add-layout-item');
+          addLayoutItem.innerHTML = '<span>+</span>';
+          addLayoutItem.onclick = function () {
+            console.log('Add new layout clicked');
+            // Implement the logic to generate a new layout here
+          };
+          gridContainer.appendChild(addLayoutItem);
+
+          const pageContainer = document.getElementById('page-container');
+          pageContainer.innerHTML = ''; // Clear existing content
+          pageContainer.appendChild(gridContainer);
+        }
+
 
         function generateLayoutDrafts() {
+
+
+
+
           const currentSteps = Array.from(stepsContainer.querySelectorAll('.step-box textarea'))
             .map(textarea => textarea.value);
 
@@ -1472,6 +1645,7 @@ $(document).ready(function (e) {
 
                 gridItem.appendChild(layoutTitle);
                 gridItem.appendChild(layoutContent);
+                gridItem.onclick = () => showFullLayout(index);
                 gridContainer.appendChild(gridItem);
               });
 
@@ -1490,6 +1664,8 @@ $(document).ready(function (e) {
               pageContainer.appendChild(gridContainer);
               currentStep = 4;
               closeModal();
+              generatedDrafts = data.layouts
+              saveState()
             })
             .catch(error => {
               console.error('Error:', error);
@@ -1680,9 +1856,13 @@ $(document).ready(function (e) {
               currentStep = 1
               saveState()
               load_step(currentStep);
-          }}
+            }
+            aiSpecsFrame.style.display = 'none';
+
+
+          }
           else if (step === 1 || step === 2) {
-           
+
             draftModal.style.display = "block";
             document.querySelector('.button-container').style.display = 'none'; // 
             aiSpecsFrame.style.display = 'block';
@@ -1750,9 +1930,10 @@ $(document).ready(function (e) {
           else if (step === 4) {
             currentStep = 4
             // Directly show the grid view without opening the modal
+            loadLayoutDraft()
             const pageContainer = document.getElementById('page-container');
-            pageContainer.innerHTML = savedState.gridContainerHTML;
           }
+
 
         }
 
@@ -1830,14 +2011,16 @@ $(document).ready(function (e) {
           step2Text = savedState.step2Text;
           generatedSteps = savedState.generatedSteps;
           aiGuidedActive = savedState.aiGuidedActive;
+          generatedDrafts = savedState.generatedDrafts;
           console.log(generatedSteps)
           load_step(currentStep)
-
         }
         else {
           // Start a new AI-guided drafting session
           var modal = document.getElementById("draftModal");
           modal.style.display = "block";
+          aiSpecsFrame.style.display = 'none';
+
           document.getElementById("aiGuided").onclick = function () {
             currentStep = 1
             saveState()
@@ -1854,8 +2037,15 @@ $(document).ready(function (e) {
         document.getElementById("cancel").onclick = function () {
           aiSpecsFrame.classList.remove("expanded");
           draftModal.classList.remove("expanded");
+          aiSpecsFrame.classList.remove("extra-expanded");
+          draftModal.classList.remove("extra-expanded");
           document.querySelector('.button-container').style.display = 'flex'; // Show initial buttons
           document.getElementById("aiSpecs").style.display = 'none'; // Hide AI specs
+          document.getElementById("aiGuided").onclick = function () {
+            currentStep = 1
+            saveState()
+            load_step(currentStep);
+          }
           currentStep = 0
           saveState()
         }
@@ -1866,6 +2056,7 @@ $(document).ready(function (e) {
 
       // Close modal function
       function closeModal() {
+        draftModal = document.getElementById("draftModal");
         draftModal.style.display = "none";
       }
       // Handle manual button

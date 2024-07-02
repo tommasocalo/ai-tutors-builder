@@ -70,13 +70,144 @@ def index():
 
 
 
+#################
+# DSL TO HTML #
+#################
+
+item_count = 0
+
+def create_element(tag, class_name=None, placeholder=None, data_type=None, content="",style = None):
+    global item_count
+    attributes = []
+    if class_name:
+        attributes.append(f'class="{class_name}"')
+    if placeholder:
+        attributes.append(f'placeholder="{placeholder}"')
+    if data_type:
+        item_id = f"newItem_{item_count}"
+        attributes.extend([f'data-type="{data_type}"', 'draggable="true"', 'type="button"', f'id="{item_id}"'])
+        item_count += 1
+    if style:
+        attributes.append('style="'+style+'"')
+    return f"<{tag} {' '.join(attributes)}>{content}</{tag}>"
+
+def process_compact_rep(compact_string, is_child=False):
+    regex = re.compile(r'(\w+)\[([^\]]+)\]|\w+\s*{')
+    match = None
+    html = []
+
+    while True:
+        match = regex.search(compact_string)
+        if match:
+            matched_string, type_, content = match.group(), match.group(1), match.group(2)
+            if type_ and content:
+                if type_ == "title" or type_ == "label":
+                    div_class = "btn-primary btn-tutor-title" if type_ == "title" else "btn-success btn-label row"
+                    dt = "page-items" if type_ == "title" else "page-row"
+                    p = create_element("p", "page-item", None, None, content) + create_element("p", "removeFromDom", None, None, "Tutor Title")
+                    q = create_element("p", "page-item align-self-center", None, None, content) + create_element("p", "removeFromDom", None, None, "Label")
+                    f = p if type_ == "title" else q
+                    html.append(create_element("div", f"btn {div_class} rounded-button", None, dt, f))
+                elif type_ == "input":
+                    input_element_style = "border: none;box-shadow: none;text-align: center;"
+                    input_element = create_element("input", "form-control", content, None, None, input_element_style)
+                    html.append(create_element("div", "btn btn-light btn-input-box-t rounded-button", None, "page-row", input_element))
+            elif matched_string.strip().endswith("{"):
+                element_type = matched_string.strip().replace("{", "").strip()
+                div_type = "page-row" if element_type == "row" else "page-items"
+                div_class = "btn-warning btn-row btn-row-item grid" if element_type == "row" else "btn-info btn-column"
+                p_remove = create_element("p", "removeFromDom", None, None, element_type.capitalize())
+                ul_class = "list one page-item-ul grid grid-flow-col gap-1" if element_type == "row" else "list one d-flex flex-column gap-2 page-item-rl-row"
+                ul_id = "page-item-ul" if element_type == "row" else "page-item-rl-row"
+                close_index = find_closing_index(compact_string, match.end())
+                inner_content = compact_string[match.end():close_index]
+                ul_content = process_compact_rep(inner_content, True)
+                ul = f'<ul class="{ul_class}" data-type="page-row">{ul_content}</ul>'
+                html.append(create_element("div", f"btn {div_class} drop-box rounded-button", None, div_type, p_remove + ul))
+                compact_string = compact_string[close_index + 1:]
+                continue
+            compact_string = compact_string[match.end():]
+        else:
+            break
+
+    if is_child:
+        return ''.join(html)
+    else:
+        page_div = create_element("div", None, None, "page-items", ''.join(html))
+        final_container_div = create_element("div", "container mx-auto flex flex-col py-1 justify-center items-center", None, None, "")
+        return ''.join(html) + final_container_div
+
+def find_closing_index(string, open_index):
+    stack = 1
+    for i in range(open_index, len(string)):
+        if string[i] == "{":
+            stack += 1
+        elif string[i] == "}":
+            stack -= 1
+
+        if stack == 0:
+            return i
+    return -1  # Handle malformed strings gracefully
+
+def append_elements_from_compact_rep(compact_rep, is_child=False):
+    html = process_compact_rep(compact_rep, is_child)
+    return html.replace("None", "")
+
+
+
+#################
+# HTML TO DSL #
+#################
+
+from bs4 import BeautifulSoup
+
+def process_pointed_element(element, processed=None):
+    if processed is None:
+        processed = set()
+    if element in processed:
+        return ''
+    processed.add(element)
+    class_list = element.get('class', [])
+    pointed_value = element.get('pointed', '')
+    pointed_suffix = f"({pointed_value})" if pointed_value else ''
+    if 'btn-tutor-title' in class_list:
+        title = element.find('p', class_='page-item')
+        return f"title[{title.get_text(strip=True)}]{pointed_suffix}" if title else ''
+    elif 'btn-row' in class_list or 'btn-column' in class_list:
+        container_type = 'row' if 'btn-row' in class_list else 'column'
+        return process_pointed_container(element, container_type, processed)
+    elif 'btn-label' in class_list:
+        label = element.find('p', class_='page-item')
+        return f"label[{label.get_text(strip=True)}]{pointed_suffix}" if label else ''
+    elif 'btn-input-box-t' in class_list:
+        input_element = element.find('input')
+        input_placeholder = input_element.get('placeholder', 'Text Box') if input_element else 'Text Box'
+        return f"input[{input_placeholder}]{pointed_suffix}"
+    return ''
+
+def process_pointed_container(element, container_type, processed):
+    ul_element = element.find('ul', recursive=False)
+    if ul_element:
+        children = ul_element.find_all('div', recursive=False)
+        if children:
+            child_elements = [process_pointed_element(child, processed) for child in children]
+            child_elements = [elem for elem in child_elements if elem]  # Remove empty strings
+            return f"{container_type}{{{', '.join(child_elements)}}}"
+    return f"{container_type}{{}}"
+
+def compact_html_representation_pointed(html):
+    soup = BeautifulSoup(html, 'html.parser')    
+    if soup:
+        elements = soup.find_all('div', recursive=False)
+        processed = set()
+        representation = ', '.join(filter(None, (process_pointed_element(elem, processed) for elem in elements)))
+        return representation
+    else:
+        return "No top-level container found"
+
 ###########
 # GENERAL #
 ###########
-
-
-
-
 
 
 @app.route("/tutor_builder", methods=["GET", 'POST'])

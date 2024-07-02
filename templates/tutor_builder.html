@@ -21,7 +21,7 @@
          <div class="row gap-5">
             <!-- playground -->
             <div class="col-8 p-1" id="playground">
-               <div class="undo-redo-buttons flex justify-start mt-2 ml-3">
+               <div class="undo-redo-buttons flex justify-start mt-2 ml-3 hidden" id = 'control-bar'>
                   <button class="btn btn-secondary btn-lg ml-2 mr-2" id="undo">
                      Undo
                   </button>
@@ -173,7 +173,7 @@
                            </div>
                            <!-- Input group with text field and buttons -->
                            <div class="input-group mt-3 p-2">
-                              <input type="text" class="form-control" placeholder="Descibe the component..."
+                              <input type="text" class="form-control" placeholder="Descibe the component..." 
                                  aria-label="Component input" />
                               <div class="input-group-append">
                                  <button class="btn generate_component_btn rounded-button me-2" type="button">
@@ -222,7 +222,7 @@
                         </div>
                         <div data-type="page-row" draggable="true" type="button"
                            class="btn btn-light btn-input-box-t rounded-button" id="Input-Box1">
-                           <input type="text" class="form-control" placeholder="Text Box" id="input-box" required
+                           <input type="text" class="form-control" placeholder="Text Box" id="input-box" required readonly
                               style="border: none; box-shadow: none; text-align: center" />
                         </div>
 

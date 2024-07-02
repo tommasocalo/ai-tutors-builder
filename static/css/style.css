@@ -277,9 +277,6 @@ h5 {
   margin-bottom: 20px; /* Space below the dummy for new content */
 }
 
-#page-container  {
-  min-height: 100%;
-}
 
 #page-container::after {
   content: "";
@@ -385,12 +382,11 @@ h5 {
 
 .list {
   list-style: none;
-  height: 75% !important;
+  height: auto;
   /* min-height: 18vh; */
 }
 
 UL .btn-row .list {
-  height: 100% !important;
   /*    height: 100%;*/
   min-height: 3vh;
   padding: 10px;
@@ -404,6 +400,9 @@ UL .btn-row .list {
 }
 
 
+#page-container  {
+  height: 100%;
+}
 
 .active {
   background: #6a1b9a;
@@ -411,6 +410,14 @@ UL .btn-row .list {
 
 .clicked {
   border-color: yellow !important;
+}
+
+.pinClicked {
+  border-color: black !important;
+}
+
+.likeClicked {
+  border-color: red !important;
 }
 
 .text-area {
@@ -486,11 +493,6 @@ padding-right: 10px;
   margin-top: 60px !important;
 }
 
-#page .page-item-ul {
-  /*    padding-top: 10px;
-    padding-bottom: 10px;*/
-  height: 100% !important;
-}
 
 #page {
   padding: 10px;
@@ -857,7 +859,6 @@ padding-right: 10px;
   border-radius: 20px;
   border-bottom-right-radius:  20px !important ;
   border-top-right-radius:  20px !important;
-
   box-shadow: none; /* Removes the Bootstrap shadow if you don't want it */
   cursor: text;
 
@@ -1357,14 +1358,19 @@ padding-right: 10px;
 .bottom-bar button:nth-child(4) { background-color: #9C27B0; color: white; } /* Generate from Preferences */
 
 
-body.pinning-cursor {
-  cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="%23ff0000"/></svg>') 10 10, auto;
+.pinning-cursor {
+  cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="%23ff0000"/></svg>') 10 10, auto !important;
 }
 
-body.liking-cursor {
-  cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><path d="M10 3.22l-.61-.6a5.5 5.5 0 0 0-7.78 7.77L10 18.78l8.39-8.4a5.5 5.5 0 0 0-7.78-7.77l-.61.61z" fill="%23ff0000"/></svg>') 10 10, auto;
+.liking-cursor {
+  cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><path d="M10 3.22l-.61-.6a5.5 5.5 0 0 0-7.78 7.77L10 18.78l8.39-8.4a5.5 5.5 0 0 0-7.78-7.77l-.61.61z" fill="%23ff0000"/></svg>') 10 10, auto !important;
 }
 
 .bottom-bar button.active {
   box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.5);
+}
+
+.form-control[readonly] {
+  background-color: #ffffff
+  ;
 }

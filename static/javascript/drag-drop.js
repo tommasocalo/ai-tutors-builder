@@ -10,6 +10,135 @@ $(document).ready(function (e) {
   let item_count = 0;
 
 
+  function buildHTMLFromCompactRepresentationND(compactRep, componentName) {
+
+    // Function to create an HTML string for an element with optional class, placeholder, and additional attributes
+    function createElement(tag, className, placeholder, dataType, content = "") {
+      let attributes = "";
+      if (className) attributes += ` class="${className}"`;
+      if (placeholder) attributes += ` placeholder="${placeholder}" readonly`;
+      if (dataType) {
+        if (componentName) {
+          attributes += ` data-type="${dataType}"  type="button" id="galleryItem_${componentName}_${item_count++}"`;
+        } else {
+          attributes += ` data-type="${dataType}"  type="button" id="newItem_${item_count++}"`;
+        }
+      }
+      if (tag === "input") {
+        attributes += ` style="border: none;box-shadow: none;text-align: center;"`;
+      }
+      return `<${tag}${attributes}>${content}</${tag}>`;
+    }
+
+    // Function to recursively process and generate HTML string from the compact representation
+    function appendElementsFromCompactRep(compactString, isChild = false) {
+      const regex = /(\w+)\[([^\]]+)\]|\w+\s*{/g;
+      let match,
+        html = "";
+
+      while ((match = regex.exec(compactString)) !== null) {
+        const [matchedString, type, content] = match;
+        if (type && content) {
+          switch (type) {
+            case "title":
+            case "label":
+              const divClass =
+                type === "title"
+                  ? "btn-primary btn-tutor-title"
+                  : "btn-success btn-label row";
+              const dt =
+                type === "title"
+                  ? "page-items"
+                  : "page-row";
+              const p = createElement("p", "page-item", null, null, content) + createElement("p", "removeFromDom", null, null, "Tutor Title")
+              const q = createElement("p", "page-item align-self-center", null, null, content) + createElement("p", "removeFromDom", null, null, "Label")
+              const f = type === "title" ? p : q;
+              html += createElement(
+                "div",
+                `btn ${divClass} rounded-button`,
+                null,
+                dt,
+                f
+              );
+              break;
+            case "input":
+              const input = createElement("input", "form-control", content, null);
+              input.style = "border: none;box-shadow: none;text-align: center;";
+              html += createElement(
+                "div",
+                "btn btn-light btn-input-box-t rounded-button",
+                null,
+                "page-row",
+                input
+              );
+              break;
+          }
+        } else if (matchedString.trim().endsWith("{")) {
+          const elementType = matchedString.trim().replace("{", "").trim();
+          const divType = elementType === "row" ? "page-row" : "page-items";
+          const divClass =
+            elementType === "row"
+              ? "btn-warning btn-row btn-row-item grid"
+              : "btn-info btn-column";
+          const pRemove = createElement(
+            "p",
+            "removeFromDom",
+            null,
+            null,
+            elementType.charAt(0).toUpperCase() + elementType.slice(1)
+          );
+          const ulClass =
+            elementType === "row"
+              ? "list one page-item-ul grid grid-flow-col gap-1"
+              : "list one d-flex flex-column gap-2 page-item-rl-row";
+          const ulId =
+            elementType === "row" ? "page-item-ul" : "page-item-rl-row";
+          const closeIndex = findClosingIndex(compactString, regex.lastIndex);
+          const innerContent = compactString.substring(
+            regex.lastIndex,
+            closeIndex
+          );
+          const ulContent = appendElementsFromCompactRep(innerContent, true);
+          const ul = `<ul class="${ulClass}" data-type="page-row">${ulContent}</ul>`;
+
+          html += createElement(
+            "div",
+            `btn ${divClass} drop-box rounded-button`,
+            null,
+            divType,
+            pRemove + ul
+          );
+          regex.lastIndex = closeIndex + 1;
+        }
+      }
+      if (isChild) {
+        return html;
+      } else {
+        const pageDiv = createElement("div", null, null, "page-items", html);
+        const finalContainerDiv = createElement(
+          "div",
+          "container mx-auto flex flex-col py-1 justify-center items-center",
+          null,
+          null,
+          ""
+        );
+        return html + finalContainerDiv;
+      }
+    }
+
+    function findClosingIndex(str, openIndex) {
+      let stack = 1;
+      for (let i = openIndex; i < str.length; i++) {
+        if (str[i] === "{") stack++;
+        else if (str[i] === "}") stack--;
+
+        if (stack === 0) return i;
+      }
+      return -1; // Handle malformed strings gracefully
+    }
+    html = appendElementsFromCompactRep(compactRep)
+    return html;
+  }
 
   function buildHTMLFromCompactRepresentation(compactRep, componentName) {
 
@@ -17,7 +146,7 @@ $(document).ready(function (e) {
     function createElement(tag, className, placeholder, dataType, content = "") {
       let attributes = "";
       if (className) attributes += ` class="${className}"`;
-      if (placeholder) attributes += ` placeholder="${placeholder}"`;
+      if (placeholder) attributes += ` placeholder="${placeholder}" readonly`;
       if (dataType) {
         if (componentName) {
           attributes += ` data-type="${dataType}" draggable="true" type="button" id="galleryItem_${componentName}_${item_count++}"`;
@@ -1141,9 +1270,22 @@ $(document).ready(function (e) {
       let generatedSteps = [];
       let aiGuidedActive = false
       let stepsContainer;
-      let generatedDrafts;
+      let generatedDrafts = [];
 
 
+
+
+      initOrResume();
+
+
+      function editPlaceholder(input) {
+        const currentPlaceholder = input.placeholder;
+        const newPlaceholder = prompt("Enter new placeholder:", currentPlaceholder);
+
+        if (newPlaceholder !== null) {
+          input.placeholder = newPlaceholder;
+        }
+      }
 
       document.addEventListener("dblclick", function (e) {
         // Check if the clicked target is a component name or a page item
@@ -1163,6 +1305,10 @@ $(document).ready(function (e) {
             // Remove this blur event listener after it's executed
             e.target.removeEventListener("blur", handler);
           }, { once: true }); // The listener is removed after execution thanks to {once: true}
+        }
+        if (e.target.classList.contains("form-control")) {
+          // Add double-click event listener to each form control
+          editPlaceholder(e.target);
         }
       });
 
@@ -1226,12 +1372,15 @@ $(document).ready(function (e) {
       });
 
 
+
       document.getElementById('userInput').addEventListener('keydown', function (event) {
         if (event.key === 'Enter' || event.key === 'Return') {
           event.preventDefault();  // Prevents the default action of Enter (form submission or newline)
           sendMessage();
         }
       });
+
+
 
       function sendComponentResponse() {
         var chatMessages = document.querySelector('.chat-messages');
@@ -1257,7 +1406,7 @@ $(document).ready(function (e) {
           step2Text: step2Text,
           generatedSteps: generatedSteps,
           stepsContainerHTML: (stepsContainer && stepsContainer.innerHTML),
-          generatedDrafts: generatedDrafts,
+          generatedDrafts: generatedDrafts ?? [],
           aiGuidedActive: true
         };
         localStorage.setItem('aiGuidedState', JSON.stringify(state));
@@ -1268,10 +1417,12 @@ $(document).ready(function (e) {
         return savedState || null;
       }
 
+      let activeCursor = null;
+      let isPinLayout = false;
+      let isLikeLayout = false;
 
 
       function initOrResume() {
-
 
 
         // Close modal function
@@ -1319,7 +1470,6 @@ $(document).ready(function (e) {
           lockButton.classList.add('lock-button', 'btn', 'btn-secondary');
           lockButton.onclick = () => toggleLock(stepBox, input, lockButton);
           buttonsContainer.appendChild(lockButton);
-
 
 
 
@@ -1427,59 +1577,66 @@ $(document).ready(function (e) {
         }
 
 
-        let activeCursor = null;
+        function toggleCursor(cursorType, button) {
+          const buttons = document.querySelectorAll('.btn, .form-control');
 
-        function toggleCursor(cursorType, button, index) {
-            if (activeCursor === cursorType) {
-                // Deactivate the current cursor
-                document.body.classList.remove(`${activeCursor}-cursor`);
-                button.classList.remove('active');
-                activeCursor = null;
-            } else {
-                // Deactivate the previous cursor if any
-                if (activeCursor) {
-                    document.body.classList.remove(`${activeCursor}-cursor`);
-                    document.querySelector(`.bottom-bar button.active`).classList.remove('active');
-                }
-                // Activate the new cursor
-                document.body.classList.add(`${cursorType}-cursor`);
-                button.classList.add('active');
-                activeCursor = cursorType;
+          if (activeCursor === cursorType) {
+            // Deactivate the current cursor
+            buttons.forEach(btn => {
+              btn.classList.remove(`${activeCursor}-cursor`);
+            });
+            button.classList.remove('active');
+            activeCursor = null;
+            isPinLayout = false;
+            isLikeLayout = false;
+          } else {
+            // Deactivate the previous cursor if any
+            if (activeCursor) {
+              buttons.forEach(btn => {
+                btn.classList.remove(`${activeCursor}-cursor`);
+              });
+              const activeButton = document.querySelector('.bottom-bar button.active');
+              if (activeButton) activeButton.classList.remove('active');
             }
+            // Activate the new cursor
+            buttons.forEach(btn => {
+              btn.classList.add(`${cursorType}-cursor`);
+            });
+            button.classList.add('active');
+            activeCursor = cursorType;
+            isPinLayout = cursorType === 'pinning';
+            isLikeLayout = cursorType === 'liking';
+
+          }
+
+
+          selectedElements.forEach(el => el.classList.remove("clicked"));
+          selectedElements = [];
+        }
+        function pinLayout(event) {
+          cleanSelected();
+          toggleCursor('pinning', event.target);
+          console.log(`Pin mode ${isPinLayout ? 'activated' : 'deactivated'}`);
         }
 
-        function pinLayout(event,index) {
-          toggleCursor('pinning', event.target, index);
-
-
-          console.log(`Pinned layout ${index + 1}`);
-          // Implement pin functionality
+        function likeLayout(event) {
+          cleanSelected();
+          toggleCursor('liking', event.target);
+          console.log(`Like mode ${isLikeLayout ? 'activated' : 'deactivated'}`);
         }
-        
-        function likeLayout(event,index) {
-          toggleCursor('liking', event.target, index);
-
-
-          console.log(`Liked layout ${index + 1}`);
-          // Implement like functionality
-        }
-        
         function useLayout(index) {
           console.log(`Using layout ${index + 1}`);
           // Implement use layout functionality
         }
-        
+
         function generateFromPreferences() {
           console.log('Generating from preferences');
           // Implement generate from preferences functionality
         }
 
-
-        function showFullLayout(index) {
-          const pageContainer = document.getElementById('page-container');
-          pageContainer.innerHTML = ''; // Clear existing content
-
+        function generateFullLayout() {
           const fullLayoutContainer = document.createElement('div');
+          fullLayoutContainer.id = 'full-layout-container';
           fullLayoutContainer.classList.add('full-layout-container');
 
           const navigationBar = document.createElement('div');
@@ -1487,7 +1644,7 @@ $(document).ready(function (e) {
 
           const backButton = document.createElement('button');
           backButton.textContent = 'Back to Grid';
-          backButton.onclick = loadLayoutDraft;
+          backButton.onclick = hideFullLayout;
           navigationBar.appendChild(backButton);
 
           const titleContainer = document.createElement('div');
@@ -1495,24 +1652,31 @@ $(document).ready(function (e) {
 
           const leftArrow = document.createElement('button');
           leftArrow.textContent = '←';
-          leftArrow.onclick = () => showFullLayout((index - 1 + generatedDrafts.length) % generatedDrafts.length);
+          leftArrow.onclick = function () {
+            generatedDrafts[currentLayoutIndex] = layoutContent.innerHTML
+            navigateLayout(-1);
+          }
           titleContainer.appendChild(leftArrow);
 
           const layoutTitle = document.createElement('h2');
-          layoutTitle.textContent = `Layout ${index + 1}`;
+          layoutTitle.id = 'layout-title';
           titleContainer.appendChild(layoutTitle);
 
           const rightArrow = document.createElement('button');
           rightArrow.textContent = '→';
-          rightArrow.onclick = () => showFullLayout((index + 1) % generatedDrafts.length);
+          rightArrow.onclick = function () {
+            generatedDrafts[currentLayoutIndex] = layoutContent.innerHTML
+            navigateLayout(1);
+          }
           titleContainer.appendChild(rightArrow);
 
           navigationBar.appendChild(titleContainer);
           fullLayoutContainer.appendChild(navigationBar);
 
           const layoutContent = document.createElement('div');
+          layoutContent.id = 'layout-content';
           layoutContent.classList.add('full-layout-content');
-          layoutContent.innerHTML = buildHTMLFromCompactRepresentation(generatedDrafts[index]);
+          fullLayoutContainer.appendChild(layoutContent);
 
           const bottomBar = document.createElement('div');
           bottomBar.classList.add('bottom-bar');
@@ -1522,21 +1686,20 @@ $(document).ready(function (e) {
 
           const pinButton = document.createElement('button');
           pinButton.textContent = 'Pin';
-          pinButton.onclick = (event) => pinLayout(event, index);
+          pinButton.onclick = (event) => pinLayout(event);
           leftButtonGroup.appendChild(pinButton);
-      
+
           const likeButton = document.createElement('button');
           likeButton.textContent = 'I Like';
-          likeButton.onclick = (event) => likeLayout(event, index);
+          likeButton.onclick = (event) => likeLayout(event);
           leftButtonGroup.appendChild(likeButton);
-      
 
           const rightButtonGroup = document.createElement('div');
           rightButtonGroup.classList.add('button-group');
 
           const useLayoutButton = document.createElement('button');
           useLayoutButton.textContent = 'Use This Layout';
-          useLayoutButton.onclick = () => useLayout(index);
+          useLayoutButton.onclick = useLayout;
           rightButtonGroup.appendChild(useLayoutButton);
 
           const generateFromPreferencesButton = document.createElement('button');
@@ -1547,10 +1710,70 @@ $(document).ready(function (e) {
           bottomBar.appendChild(leftButtonGroup);
           bottomBar.appendChild(rightButtonGroup);
 
-          fullLayoutContainer.appendChild(layoutContent);
           fullLayoutContainer.appendChild(bottomBar);
 
+          return fullLayoutContainer
+
+        }
+
+
+
+
+        let currentLayoutIndex = 0;
+        let fullLayoutContainer;
+
+
+        function showFullLayout(index) {
+          currentLayoutIndex = index;
+          const pageContainer = document.getElementById('page-container');
+          pageContainer.innerHTML = ''; // Clear existing content
+          if (!fullLayoutContainer) {
+            fullLayoutContainer = generateFullLayout();
+          }
+
+          const layoutContent = fullLayoutContainer.querySelector('#layout-content');
+          const layoutTitle = fullLayoutContainer.querySelector('#layout-title');
+
+          layoutContent.innerHTML = generatedDrafts[index];
+          layoutTitle.textContent = `Layout ${index + 1}`;
           pageContainer.appendChild(fullLayoutContainer);
+
+          // Reset cursor state
+          activeCursor = null;
+          isPinLayout = false;
+          isLikeLayout = false;
+          const buttons = document.querySelectorAll('.btn, .form-control');
+          buttons.forEach(btn => {
+            btn.classList.remove('pinning-cursor', 'liking-cursor');
+          });
+          const activeButtons = document.querySelectorAll('.bottom-bar button.active');
+          activeButtons.forEach(btn => btn.classList.remove('active'));
+        }
+
+        function hideFullLayout() {
+          const pageContainer = document.getElementById('page-container');
+          pageContainer.innerHTML = ''; // Clear existing content
+          loadLayoutDraft()
+        }
+
+        function navigateLayout(direction) {
+          const newIndex = (currentLayoutIndex + direction + generatedDrafts.length) % generatedDrafts.length;
+          const layoutContent = document.getElementById('layout-content');
+          const layoutTitle = document.getElementById('layout-title');
+
+          currentLayoutIndex = newIndex;
+          layoutContent.innerHTML = generatedDrafts[newIndex];
+          layoutTitle.textContent = `Layout ${newIndex + 1}`;
+
+          // Reapply the active cursor if there is one
+          if (activeCursor) {
+            const buttons = document.querySelectorAll('.btn, .form-control');
+            buttons.forEach(btn => {
+              btn.classList.add(`${activeCursor}-cursor`);
+            });
+            const activeButton = document.querySelector(`.bottom-bar button[onclick*="${activeCursor}"]`);
+            if (activeButton) activeButton.classList.add('active');
+          }
         }
 
         function loadLayoutDraft() {
@@ -1566,7 +1789,7 @@ $(document).ready(function (e) {
 
             const miniatureWrapper = document.createElement('div');
             miniatureWrapper.classList.add('miniature-wrapper');
-            miniatureWrapper.innerHTML = buildHTMLFromCompactRepresentation(layout);
+            miniatureWrapper.innerHTML = layout;
 
             layoutContent.appendChild(miniatureWrapper);
 
@@ -1635,7 +1858,10 @@ $(document).ready(function (e) {
 
                 const miniatureWrapper = document.createElement('div');
                 miniatureWrapper.classList.add('miniature-wrapper');
-                miniatureWrapper.innerHTML = buildHTMLFromCompactRepresentation(layout);
+                html_layout = buildHTMLFromCompactRepresentationND(layout);
+                miniatureWrapper.innerHTML = html_layout
+
+                generatedDrafts.push(html_layout)
 
                 layoutContent.appendChild(miniatureWrapper);
 
@@ -1664,7 +1890,6 @@ $(document).ready(function (e) {
               pageContainer.appendChild(gridContainer);
               currentStep = 4;
               closeModal();
-              generatedDrafts = data.layouts
               saveState()
             })
             .catch(error => {
@@ -2072,7 +2297,6 @@ $(document).ready(function (e) {
 
 
 
-      initOrResume();
 
 
       function addMessageToChat(sender, text) {
@@ -2105,6 +2329,10 @@ $(document).ready(function (e) {
             : "▲";
         }
       });
+
+
+
+
 
       // Double-click to rename component
       componentsList.addEventListener("dblclick", function (e) {
@@ -2164,6 +2392,7 @@ $(document).ready(function (e) {
       }
 
       function makeChange() {
+        if (!isPinLayout && !isLikeLayout) {
         const newState = document.querySelector("#page-container").innerHTML;
 
         // Keep only the last 20 states
@@ -2180,7 +2409,7 @@ $(document).ready(function (e) {
         history.push(newState);
         currentStateIndex++;
         applyState(newState);
-      }
+      } }
 
       function undo() {
         if (currentStateIndex > 0) {
@@ -2484,24 +2713,29 @@ $(document).ready(function (e) {
 
 
 
+      let pinnedElements = [];
+      let likedElements = [];
+
+      function isChildOfLayoutContent(element) {
+        if (element.id === 'layout-content') {
+          return false;  // layout-content is not considered a child of itself
+        }
+        
+        let currentElement = element.parentElement;  // Start with the parent
+        while (currentElement) {
+          if (currentElement.id === 'layout-content') {
+            return true;  // Found layout-content as a parent
+          }
+          currentElement = currentElement.parentElement;
+        }
+        return false;  // Reached the top without finding layout-content
+      }
 
       function onClickHandler(event) {
-
         if (copyMode) {
-          clickCopy(event)
-          toggleCopyMode(false)
-
-
-          return
-        }
-        if (selectedElements.length > 0 && !event.shiftKey) {
-
-          for (var i = 0; i < selectedElements.length; i++) {
-            // //console.log("for loop!!!", allNames.length);
-            selectedElements[i].classList.remove("clicked")
-          }
-          selectedElements.splice(0, selectedElements.length);
-
+          clickCopy(event);
+          toggleCopyMode(false);
+          return;
         }
 
         LOG.push(
@@ -2513,53 +2747,161 @@ $(document).ready(function (e) {
             event.target.id
           )
         );
+
         if (
           event.target.id == "page-container" ||
           event.target.classList.contains("component-details-content") ||
           event.target.id == "page"
         ) {
-          EditItem.classList.remove("clicked");
           return;
         }
+
         EditItem = event.target;
 
-        // //console.log(EditItem.parentNode);
         if (
-          event.target.id === "page-item" ||
+          event.target.classList.contains("form-control") ||
+          event.target.classList.contains("page-item") ||
           event.target.classList.contains("page-item-ul") ||
           event.target.classList.contains("page-item-rl-row")
         ) {
           EditItem = EditItem.parentNode;
         }
 
-        createID = EditItem.id
-        if (allNames.length == 0) {
-          //console.log("first push!!!");
-          allNames.push(createID);
-          //console.log(allNames);
-        } else {
-          for (var i = 0; i < allNames.length; i++) {
-            // //console.log("for loop!!!", allNames.length);
-            if (allNames[i] === createID) {
-              i++;
-              //console.log(" duplicate!!!");
-              break;
-            } else if (
-              i === allNames.length - 1 &&
-              allNames[allNames.length - 1] !== createID
-            ) {
-              //console.log("This is not duplicate!");
-              allNames.push(createID);
-              //console.log(allNames);
-              //console.log("length=======", allNames.length);
-            }
-          }
-        }
+        createID = EditItem.id;
 
-        EditItem.classList.add("clicked");
-        selectedElements.push(EditItem);
+        if (!allNames.includes(createID)) {
+          allNames.push(createID);
+        }
+        console.log(isPinLayout)
+        console.log(isLikeLayout)
+        if (isPinLayout || isLikeLayout) {
+          if (isChildOfLayoutContent(EditItem)) {
+            if (isPinLayout) {
+              handlePinSelection(EditItem);
+            } else {
+              handleLikeSelection(EditItem);
+            }
+          } else {
+            console.log("Selected element is not a child of layout-content. Pin/Like action ignored.");
+          }
+        } else {
+          handleNormalSelection(EditItem, event.shiftKey);
+        }
       }
 
+      function checkParentsAndShowPopup(element, action) {
+        let currentElement = element.parentElement;
+        while (currentElement && currentElement.id !== 'layout-content') {
+          if (currentElement.hasAttribute('pointed')) {
+            const pointedType = currentElement.getAttribute('pointed');
+            if (pointedType === 'fix') {
+              alert(`A parent of this element is already pinned. It's not possible to ${action} a child of a pinned element.`);
+              return true;
+            }
+            if (action === 'like' && pointedType === 'pref') {
+              alert("A parent of this element is already preferred. It's not possible to prefer a child of a preferred element.");
+              return true;
+            }
+          }
+          currentElement = currentElement.parentElement;
+        }
+        return false;
+      }
+
+      function handlePinSelection(element) {
+        if (checkParentsAndShowPopup(element, 'pin')) {
+          return;
+        }
+
+        const index = pinnedElements.indexOf(element);
+        if (index > -1) {
+          // Element is already pinned, remove it
+          pinnedElements.splice(index, 1);
+          element.classList.remove("pinClicked");
+          element.removeAttribute("pointed");
+        } else {
+          // Add element to pinned list
+          pinnedElements.push(element);
+          element.classList.add("pinClicked");
+          element.setAttribute("pointed", "fix");
+
+          // Remove preference if the element was previously preferred
+          const likedIndex = likedElements.indexOf(element);
+          if (likedIndex > -1) {
+            likedElements.splice(likedIndex, 1);
+            element.classList.remove("likeClicked");
+          }
+
+          // Remove pins and preferences from all child elements
+          const childrenWithPointed = element.querySelectorAll('[pointed]');
+          childrenWithPointed.forEach(child => {
+            if (child.getAttribute('pointed') === 'fix') {
+              const childIndex = pinnedElements.indexOf(child);
+              if (childIndex > -1) {
+                pinnedElements.splice(childIndex, 1);
+              }
+              child.classList.remove("pinClicked");
+            } else {
+              const childIndex = likedElements.indexOf(child);
+              if (childIndex > -1) {
+                likedElements.splice(childIndex, 1);
+              }
+              child.classList.remove("likeClicked");
+            }
+            child.removeAttribute("pointed");
+          });
+        }
+        // Update cursor
+      }
+
+      function handleLikeSelection(element) {
+        if (checkParentsAndShowPopup(element, 'like')) {
+          return;
+        }
+
+        const index = likedElements.indexOf(element);
+        if (index > -1) {
+          // Element is already liked, remove it
+          likedElements.splice(index, 1);
+          element.classList.remove("likeClicked");
+          element.removeAttribute("pointed");
+        } else {
+          // Add element to liked list
+          likedElements.push(element);
+          element.classList.add("likeClicked");
+          element.setAttribute("pointed", "pref");
+
+          // Remove preference from all child elements
+          const childrenLiked = element.querySelectorAll('[pointed="pref"]');
+          childrenLiked.forEach(child => {
+            const childIndex = likedElements.indexOf(child);
+            if (childIndex > -1) {
+              likedElements.splice(childIndex, 1);
+            }
+            child.classList.remove("likeClicked");
+            child.removeAttribute("pointed");
+          });
+        }
+        // Update cursor
+      }
+      function handleNormalSelection(element, isShiftKey) {
+        if (!isShiftKey) {
+          // Clear previous selection only if shift key is not pressed
+          selectedElements.forEach(el => el.classList.remove("clicked"));
+          selectedElements = [];
+        }
+
+        const index = selectedElements.indexOf(element);
+        if (index > -1) {
+          // Element is already selected, remove it
+          selectedElements.splice(index, 1);
+          element.classList.remove("clicked");
+        } else {
+          // Add element to selection
+          selectedElements.push(element);
+          element.classList.add("clicked");
+        }
+      }
       function changeIDHandler(event) {
         // //console.log("value : ", event.target.value);
 

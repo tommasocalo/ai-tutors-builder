@@ -2807,12 +2807,22 @@ $(document).ready(function (e) {
         }
         return false;
       }
-
       function handlePinSelection(element) {
-        if (checkParentsAndShowPopup(element, 'pin')) {
-          return;
+        let currentElement = element;
+        while (currentElement && currentElement.id !== 'layout-content') {
+          if (currentElement.hasAttribute('pointed') && currentElement.getAttribute('pointed') === 'fix') {
+            // Deselect the outer pinned element
+            const index = pinnedElements.indexOf(currentElement);
+            if (index > -1) {
+              pinnedElements.splice(index, 1);
+              currentElement.classList.remove("pinClicked");
+              currentElement.removeAttribute("pointed");
+            }
+            break;
+          }
+          currentElement = currentElement.parentElement;
         }
-
+      
         const index = pinnedElements.indexOf(element);
         if (index > -1) {
           // Element is already pinned, remove it
@@ -2824,14 +2834,14 @@ $(document).ready(function (e) {
           pinnedElements.push(element);
           element.classList.add("pinClicked");
           element.setAttribute("pointed", "fix");
-
+      
           // Remove preference if the element was previously preferred
           const likedIndex = likedElements.indexOf(element);
           if (likedIndex > -1) {
             likedElements.splice(likedIndex, 1);
             element.classList.remove("likeClicked");
           }
-
+      
           // Remove pins and preferences from all child elements
           const childrenWithPointed = element.querySelectorAll('[pointed]');
           childrenWithPointed.forEach(child => {
@@ -2853,12 +2863,23 @@ $(document).ready(function (e) {
         }
         // Update cursor
       }
-
+      
       function handleLikeSelection(element) {
-        if (checkParentsAndShowPopup(element, 'like')) {
-          return;
+        let currentElement = element;
+        while (currentElement && currentElement.id !== 'layout-content') {
+          if (currentElement.hasAttribute('pointed') && currentElement.getAttribute('pointed') === 'pref') {
+            // Deselect the outer liked element
+            const index = likedElements.indexOf(currentElement);
+            if (index > -1) {
+              likedElements.splice(index, 1);
+              currentElement.classList.remove("likeClicked");
+              currentElement.removeAttribute("pointed");
+            }
+            break;
+          }
+          currentElement = currentElement.parentElement;
         }
-
+      
         const index = likedElements.indexOf(element);
         if (index > -1) {
           // Element is already liked, remove it
@@ -2870,7 +2891,7 @@ $(document).ready(function (e) {
           likedElements.push(element);
           element.classList.add("likeClicked");
           element.setAttribute("pointed", "pref");
-
+      
           // Remove preference from all child elements
           const childrenLiked = element.querySelectorAll('[pointed="pref"]');
           childrenLiked.forEach(child => {

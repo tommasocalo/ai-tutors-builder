@@ -1585,7 +1585,8 @@ $(document).ready(function (e) {
             buttons.forEach(btn => {
               btn.classList.remove(`${activeCursor}-cursor`);
             });
-            button.classList.remove('active');
+            if(button){
+            button.classList.remove('active');}
             activeCursor = null;
             isPinLayout = false;
             isLikeLayout = false;
@@ -1602,13 +1603,13 @@ $(document).ready(function (e) {
             buttons.forEach(btn => {
               btn.classList.add(`${cursorType}-cursor`);
             });
-            button.classList.add('active');
+            if(button){
+            button.classList.add('active');}
             activeCursor = cursorType;
             isPinLayout = cursorType === 'pinning';
             isLikeLayout = cursorType === 'liking';
 
           }
-
 
           selectedElements.forEach(el => el.classList.remove("clicked"));
           selectedElements = [];
@@ -1616,24 +1617,65 @@ $(document).ready(function (e) {
         function pinLayout(event) {
           cleanSelected();
           toggleCursor('pinning', event.target);
-          console.log(`Pin mode ${isPinLayout ? 'activated' : 'deactivated'}`);
         }
 
         function likeLayout(event) {
           cleanSelected();
           toggleCursor('liking', event.target);
-          console.log(`Like mode ${isLikeLayout ? 'activated' : 'deactivated'}`);
         }
         function useLayout(index) {
-          console.log(`Using layout ${index + 1}`);
           // Implement use layout functionality
         }
-
         function generateFromPreferences() {
           console.log('Generating from preferences');
-          // Implement generate from preferences functionality
-        }
+        
+          // Filter the generatedDrafts array to include only drafts with pointed attribute
+          const draftsWithPointed = generatedDrafts.filter(draft => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(draft, 'text/html');
+            const elementsWithPointed = htmlDoc.querySelectorAll('[pointed]');
+            console.log(elementsWithPointed)
+            return elementsWithPointed.length > 0;
+          });
+        
+          if (draftsWithPointed.length === 0) {
+            alert('No preference expressed. Please select preferred elements before generating from preferences.');
+            return;
+          }
+        
+          const spinnerOverlay = document.createElement('div'); 
+          
+          spinnerOverlay.classList.add('spinner-overlay');
 
+          const layoutContainer = document.getElementById('full-layout-container');
+          spinnerOverlay.innerHTML = '<div class="spinner"></div>';
+          layoutContainer.appendChild(spinnerOverlay);
+        
+          fetch('/generateFromPreferences', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              drafts: draftsWithPointed
+            })
+          })
+            .then(response => response.json())
+            .then(data => {
+              layoutContainer.removeChild(spinnerOverlay);
+              const pageContainer = document.getElementById('page-container');
+              pageContainer.innerHTML = buildHTMLFromCompactRepresentation(data.text, false); // Clear existing content
+              toggleCursor(activeCursor,false)
+              document.getElementById("control-bar").classList.remove("hidden")
+              history = [document.querySelector("#page-container").innerHTML];
+
+
+            })
+            .catch(error => {
+              console.error('Error:', error);
+              layoutContainer.removeChild(spinnerOverlay);
+            });
+        }
         function generateFullLayout() {
           const fullLayoutContainer = document.createElement('div');
           fullLayoutContainer.id = 'full-layout-container';
@@ -1704,7 +1746,10 @@ $(document).ready(function (e) {
 
           const generateFromPreferencesButton = document.createElement('button');
           generateFromPreferencesButton.textContent = 'Generate from Preferences';
-          generateFromPreferencesButton.onclick = generateFromPreferences;
+          generateFromPreferencesButton.onclick = function () {
+            generatedDrafts[currentLayoutIndex] = layoutContent.innerHTML
+            generateFromPreferences()
+          }
           rightButtonGroup.appendChild(generateFromPreferencesButton);
 
           bottomBar.appendChild(leftButtonGroup);
@@ -2117,7 +2162,6 @@ $(document).ready(function (e) {
             nextButton.textContent = "Next"; // Reset "Next" button text
           }
           else if (step === 3) {
-            console.log(currentStep)
             currentStep = 3
             // Show the third step
             document.querySelector('.button-container').style.display = 'none'; // 
@@ -2237,7 +2281,6 @@ $(document).ready(function (e) {
           generatedSteps = savedState.generatedSteps;
           aiGuidedActive = savedState.aiGuidedActive;
           generatedDrafts = savedState.generatedDrafts;
-          console.log(generatedSteps)
           load_step(currentStep)
         }
         else {
@@ -2493,7 +2536,6 @@ $(document).ready(function (e) {
         }
 
         if (event.key === 'c' && (event.metaKey || event.ctrlKey)) {
-          console.log(selectedElements.length)
           if (selectedElements.length == 1) {
 
             copyItem = selectedElements[0]
@@ -2772,6 +2814,78 @@ $(document).ready(function (e) {
         if (!allNames.includes(createID)) {
           allNames.push(createID);
         }
+
+        if (isPinLayout || isLikeLayout) {
+          if (isChildOfLayoutContent(EditItem)) {
+            if (isPinLayout) {
+              handlePinSelection(EditItem);
+            } else {
+              handleLikeSelection(EditItem);
+            }
+          } else {
+            console.log("Selected element is not a child of layout-content. Pin/Like action ignored.");
+          }
+        } else {
+          handleNormalSelection(EditItem, event.shiftKey);
+        }
+      }
+
+  function isChildOfLayoutContent(element) {
+        if (element.id === 'layout-content') {
+          return false;  // layout-content is not considered a child of itself
+        }
+        
+        let currentElement = element.parentElement;  // Start with the parent
+        while (currentElement) {
+          if (currentElement.id === 'layout-content') {
+            return true;  // Found layout-content as a parent
+          }
+          currentElement = currentElement.parentElement;
+        }
+        return false;  // Reached the top without finding layout-content
+      }
+
+      function onClickHandler(event) {
+        if (copyMode) {
+          clickCopy(event);
+          toggleCopyMode(false);
+          return;
+        }
+
+        LOG.push(
+          create_log_item(
+            "Tutor Building",
+            "Tutor",
+            TUTOR_ID,
+            "Element Clicked",
+            event.target.id
+          )
+        );
+
+        if (
+          event.target.id == "page-container" ||
+          event.target.classList.contains("component-details-content") ||
+          event.target.id == "page"
+        ) {
+          return;
+        }
+
+        EditItem = event.target;
+
+        if (
+          event.target.classList.contains("form-control") ||
+          event.target.classList.contains("page-item") ||
+          event.target.classList.contains("page-item-ul") ||
+          event.target.classList.contains("page-item-rl-row")
+        ) {
+          EditItem = EditItem.parentNode;
+        }
+
+        createID = EditItem.id;
+
+        if (!allNames.includes(createID)) {
+          allNames.push(createID);
+        }
         console.log(isPinLayout)
         console.log(isLikeLayout)
         if (isPinLayout || isLikeLayout) {
@@ -2789,40 +2903,45 @@ $(document).ready(function (e) {
         }
       }
 
-      function checkParentsAndShowPopup(element, action) {
+      function checkParents(element, action) {
         let currentElement = element.parentElement;
         while (currentElement && currentElement.id !== 'layout-content') {
           if (currentElement.hasAttribute('pointed')) {
             const pointedType = currentElement.getAttribute('pointed');
-            if (pointedType === 'fix') {
+
+
+            if (pointedType === 'fix' && action === 'like' ) {
               alert(`A parent of this element is already pinned. It's not possible to ${action} a child of a pinned element.`);
               return true;
             }
+            if (pointedType === 'fix' && action === 'pin') {
+              const index = pinnedElements.indexOf(currentElement);
+              pinnedElements.splice(index, 1);
+              currentElement.classList.remove("pinClicked");
+              currentElement.removeAttribute("pointed");
+              return false;
+            }
+            
             if (action === 'like' && pointedType === 'pref') {
-              alert("A parent of this element is already preferred. It's not possible to prefer a child of a preferred element.");
-              return true;
+              
+              const index = likedElements.indexOf(currentElement);
+              console.log(index)
+              likedElements.splice(index, 1);
+              currentElement.classList.remove("likeClicked");
+              currentElement.removeAttribute("pointed");
+              return false;
             }
           }
           currentElement = currentElement.parentElement;
         }
         return false;
       }
+
       function handlePinSelection(element) {
-        let currentElement = element;
-        while (currentElement && currentElement.id !== 'layout-content') {
-          if (currentElement.hasAttribute('pointed') && currentElement.getAttribute('pointed') === 'fix') {
-            // Deselect the outer pinned element
-            const index = pinnedElements.indexOf(currentElement);
-            if (index > -1) {
-              pinnedElements.splice(index, 1);
-              currentElement.classList.remove("pinClicked");
-              currentElement.removeAttribute("pointed");
-            }
-            break;
-          }
-          currentElement = currentElement.parentElement;
+        if (checkParents(element, 'pin')) {
+          return;
         }
-      
+
         const index = pinnedElements.indexOf(element);
         if (index > -1) {
           // Element is already pinned, remove it
@@ -2834,14 +2953,14 @@ $(document).ready(function (e) {
           pinnedElements.push(element);
           element.classList.add("pinClicked");
           element.setAttribute("pointed", "fix");
-      
+
           // Remove preference if the element was previously preferred
           const likedIndex = likedElements.indexOf(element);
           if (likedIndex > -1) {
             likedElements.splice(likedIndex, 1);
             element.classList.remove("likeClicked");
           }
-      
+
           // Remove pins and preferences from all child elements
           const childrenWithPointed = element.querySelectorAll('[pointed]');
           childrenWithPointed.forEach(child => {
@@ -2863,23 +2982,12 @@ $(document).ready(function (e) {
         }
         // Update cursor
       }
-      
+
       function handleLikeSelection(element) {
-        let currentElement = element;
-        while (currentElement && currentElement.id !== 'layout-content') {
-          if (currentElement.hasAttribute('pointed') && currentElement.getAttribute('pointed') === 'pref') {
-            // Deselect the outer liked element
-            const index = likedElements.indexOf(currentElement);
-            if (index > -1) {
-              likedElements.splice(index, 1);
-              currentElement.classList.remove("likeClicked");
-              currentElement.removeAttribute("pointed");
-            }
-            break;
-          }
-          currentElement = currentElement.parentElement;
+        if (checkParents(element, 'like')) {
+          return;
         }
-      
+
         const index = likedElements.indexOf(element);
         if (index > -1) {
           // Element is already liked, remove it
@@ -2891,7 +2999,7 @@ $(document).ready(function (e) {
           likedElements.push(element);
           element.classList.add("likeClicked");
           element.setAttribute("pointed", "pref");
-      
+
           // Remove preference from all child elements
           const childrenLiked = element.querySelectorAll('[pointed="pref"]');
           childrenLiked.forEach(child => {

@@ -25,7 +25,9 @@
                   <button class="btn btn-secondary btn-lg ml-2 mr-2" id="undo">
                      Undo
                   </button>
-                  <button class="btn btn-secondary btn-lg" id="redo">Redo</button>
+                  <button class="btn btn-secondary btn-lg mr-2" id="redo">Redo</button>
+                  <button class="btn btn-secondary btn-lg" id="restart">Restart</button>
+
                   <div class="keyboard-shortcuts ml-auto mr-10">
                      <div class="keyboard-key">Shift</div>
                      <div class="keyboard-plus">+</div>
@@ -103,9 +105,9 @@
 
             </div>
 
-            <div class="col" id="drag_drop">
+            <div class="col display-none" id="drag_drop">
                <!-- drag and drop -->
-               <div class="tab-switcher-container mb-3">
+               <div class="tab-switcher-container mb-3 hidden">
                   <button class="btn btn-dark rounded-button" id="show-td">
                      Interface-Level Generator
                   </button>
@@ -117,7 +119,7 @@
                   </button>
                </div>
 
-               <div class="border rounded-2 border-5 p-3 mt-5" id="ai-tutor-designer">
+               <div class="border rounded-2 border-5 p-3 mt-5 hidden" id="ai-tutor-designer">
                   <div class="border rounded-2 border-5">
                      <div class="bg-warning rounded-2" style="height: 50px; width: 100%">
                         <div class="row" style="height: 100%">
@@ -140,7 +142,7 @@
                   </div>
                </div>
                <!-- Components Gallery -->
-               <div class="border rounded-2 border-5 p-3 mt-5" id="components-gallery">
+               <div class="border rounded-2 border-5 p-3 mt-5 hidden" id="components-gallery">
                   <div class="bg-warning rounded-2" style="height: 50px; width: 100%">
                      <div class="row" style="height: 100%">
                         <div class="fw-bold fs-2 align-self-center">
@@ -198,7 +200,7 @@
                      </button>
                   </div>
                </div>
-               <div class="border rounded-2 border-5 p-3 mt-5" id="drag-drop-section" xd>
+               <div class="border rounded-2 border-5 p-3 mt-5 display-none" id="drag-drop-section" xd>
                   <div>
                      <div class="bg-warning rounded-2" style="height: 50px; width: 100%">
                         <div class="row" style="height: 100%">
@@ -246,7 +248,7 @@
                   </div>
                </div>
 
-               <div class="border rounded-2 border-5 p-3 mt-5" id="chat-widget">
+               <div class="border rounded-2 border-5 p-3 mt-5 display-none" id="chat-widget">
                   <div class="bg-warning rounded-2" style="height: 50px; width: 100%">
                      <div class="row" style="height: 100%">
                         <div class="fw-bold fs-2 align-self-center">

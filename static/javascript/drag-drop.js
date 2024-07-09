@@ -1255,7 +1255,26 @@ $(document).ready(function (e) {
 
   }
 
-
+  function appendToLocalLog(logEntry) {
+    let currentLog = localStorage.getItem('experimentLog') || '';
+    currentLog += JSON.stringify(logEntry) + '\n';
+    localStorage.setItem('experimentLog', currentLog);
+  }
+  
+  function create_log_item(component, actor, actor_id, action_type, action_value) {
+    const logItem = {
+      time_stamp: new Date().toLocaleString(),
+      component: component,
+      actor: actor,
+      actor_id: actor_id,
+      action_type: action_type,
+      action_value: action_value
+    };
+  
+    appendToLocalLog(logItem);
+  
+    return logItem;
+  }
 
 
 
@@ -1265,15 +1284,19 @@ $(document).ready(function (e) {
 
 
       let currentStep = 0;
+      let currentLayout = false;
+
       let step1Text = '';
       let step2Text = '';
       let generatedSteps = [];
       let aiGuidedActive = false
       let stepsContainer;
       let generatedDrafts = [];
+      let currentTutor = false
 
-
-
+      let activeCursor = null;
+      let isPinLayout = false;
+      let isLikeLayout = false;
 
       initOrResume();
 
@@ -1324,9 +1347,32 @@ $(document).ready(function (e) {
         .forEach((container) => {
           container.addEventListener("click", onClickHandler, false);
         });
+        
       document.getElementById("redo").addEventListener("click", redo, false);
       document.getElementById("undo").addEventListener("click", undo, false);
-
+      document.getElementById("restart").addEventListener("click", restart, false);
+      document.getElementById('saveLogButton').addEventListener('click', function() {
+        const logContent = localStorage.getItem('experimentLog') || '';
+        
+        // Create a Blob with the log content
+        const blob = new Blob([logContent], { type: 'text/plain' });
+        
+        // Create a temporary URL for the Blob
+        const url = window.URL.createObjectURL(blob);
+        
+        // Create a link element and trigger the download
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = 'experiment_log.txt';
+        
+        document.body.appendChild(a);
+        a.click();
+        
+        // Clean up
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      });
       // Event listeners for the buttons
       document.getElementById("show-td").addEventListener("click", function () {
         toggleSection("show-td", "ai-tutor-designer");
@@ -1402,12 +1448,14 @@ $(document).ready(function (e) {
       function saveState() {
         const state = {
           currentStep: currentStep,
+          currentLayout: currentLayout,
           step1Text: step1Text,
           step2Text: step2Text,
           generatedSteps: generatedSteps,
           stepsContainerHTML: (stepsContainer && stepsContainer.innerHTML),
           generatedDrafts: generatedDrafts ?? [],
-          aiGuidedActive: true
+          aiGuidedActive: true,
+          currentTutor: currentTutor,
         };
         localStorage.setItem('aiGuidedState', JSON.stringify(state));
       }
@@ -1417,9 +1465,7 @@ $(document).ready(function (e) {
         return savedState || null;
       }
 
-      let activeCursor = null;
-      let isPinLayout = false;
-      let isLikeLayout = false;
+
 
 
       function initOrResume() {
@@ -1585,8 +1631,9 @@ $(document).ready(function (e) {
             buttons.forEach(btn => {
               btn.classList.remove(`${activeCursor}-cursor`);
             });
-            if(button){
-            button.classList.remove('active');}
+            if (button) {
+              button.classList.remove('active');
+            }
             activeCursor = null;
             isPinLayout = false;
             isLikeLayout = false;
@@ -1603,8 +1650,9 @@ $(document).ready(function (e) {
             buttons.forEach(btn => {
               btn.classList.add(`${cursorType}-cursor`);
             });
-            if(button){
-            button.classList.add('active');}
+            if (button) {
+              button.classList.add('active');
+            }
             activeCursor = cursorType;
             isPinLayout = cursorType === 'pinning';
             isLikeLayout = cursorType === 'liking';
@@ -1628,29 +1676,28 @@ $(document).ready(function (e) {
         }
         function generateFromPreferences() {
           console.log('Generating from preferences');
-        
+
           // Filter the generatedDrafts array to include only drafts with pointed attribute
           const draftsWithPointed = generatedDrafts.filter(draft => {
             const parser = new DOMParser();
             const htmlDoc = parser.parseFromString(draft, 'text/html');
             const elementsWithPointed = htmlDoc.querySelectorAll('[pointed]');
-            console.log(elementsWithPointed)
             return elementsWithPointed.length > 0;
           });
-        
+
           if (draftsWithPointed.length === 0) {
             alert('No preference expressed. Please select preferred elements before generating from preferences.');
             return;
           }
-        
-          const spinnerOverlay = document.createElement('div'); 
-          
+
+          const spinnerOverlay = document.createElement('div');
+
           spinnerOverlay.classList.add('spinner-overlay');
 
           const layoutContainer = document.getElementById('full-layout-container');
           spinnerOverlay.innerHTML = '<div class="spinner"></div>';
           layoutContainer.appendChild(spinnerOverlay);
-        
+
           fetch('/generateFromPreferences', {
             method: 'POST',
             headers: {
@@ -1665,11 +1712,20 @@ $(document).ready(function (e) {
               layoutContainer.removeChild(spinnerOverlay);
               const pageContainer = document.getElementById('page-container');
               pageContainer.innerHTML = buildHTMLFromCompactRepresentation(data.text, false); // Clear existing content
-              toggleCursor(activeCursor,false)
+              toggleCursor(activeCursor, false)
+
+              const element = document.getElementById('playground');
+              // Remove the width style property
+              element.style.width = '70%';
+
+
+              document.getElementById("drag_drop").classList.remove("display-none")
+              document.getElementById("drag-drop-section").classList.remove("display-none")
               document.getElementById("control-bar").classList.remove("hidden")
-              history = [document.querySelector("#page-container").innerHTML];
 
 
+              currentTutor = pageContainer.innerHTML
+              saveState()
             })
             .catch(error => {
               console.error('Error:', error);
@@ -1686,7 +1742,11 @@ $(document).ready(function (e) {
 
           const backButton = document.createElement('button');
           backButton.textContent = 'Back to Grid';
-          backButton.onclick = hideFullLayout;
+          backButton.onclick = function () {
+            hideFullLayout();
+            currentLayout = false;
+            saveState()
+          }
           navigationBar.appendChild(backButton);
 
           const titleContainer = document.createElement('div');
@@ -1764,7 +1824,7 @@ $(document).ready(function (e) {
 
 
 
-        let currentLayoutIndex = 0;
+        let currentLayoutIndex = false;
         let fullLayoutContainer;
 
 
@@ -1844,7 +1904,13 @@ $(document).ready(function (e) {
 
             gridItem.appendChild(layoutTitle);
             gridItem.appendChild(layoutContent);
-            gridItem.onclick = () => showFullLayout(index);
+            gridItem.onclick = function () {
+              showFullLayout(index);
+              currentLayout = index
+              saveState()
+              // Implement the logic to generate a new layout here
+            };
+
             gridContainer.appendChild(gridItem);
           });
 
@@ -1916,7 +1982,12 @@ $(document).ready(function (e) {
 
                 gridItem.appendChild(layoutTitle);
                 gridItem.appendChild(layoutContent);
-                gridItem.onclick = () => showFullLayout(index);
+                gridItem.onclick = function () {
+                  showFullLayout(index);
+                  currentLayout = index
+                  saveState()
+                  // Implement the logic to generate a new layout here
+                };
                 gridContainer.appendChild(gridItem);
               });
 
@@ -2091,6 +2162,7 @@ $(document).ready(function (e) {
         }
 
         currentStep = 0;
+        currentLayout = false
         stepCounter = 0;
 
         const aiSpecsFrame = document.getElementById("aiSpecs");
@@ -2119,6 +2191,7 @@ $(document).ready(function (e) {
         const savedState = loadState();
 
         function load_step(step) {
+
           if (step === 0) {
             var modal = document.getElementById("draftModal");
             modal.style.display = "block";
@@ -2200,7 +2273,13 @@ $(document).ready(function (e) {
             currentStep = 4
             // Directly show the grid view without opening the modal
             loadLayoutDraft()
-            const pageContainer = document.getElementById('page-container');
+            console.log(currentLayout)
+
+            if(currentLayout || currentLayout===0){
+              
+              showFullLayout(currentLayout)
+            }
+            
           }
 
 
@@ -2273,9 +2352,23 @@ $(document).ready(function (e) {
           updateStep();
         };
 
+        
+        if (savedState && savedState.currentTutor) {
+          currentTutor = savedState.currentTutor
+          document.querySelector("#page-container").innerHTML = currentTutor
+          const element = document.getElementById('playground');
+          // Remove the width style property
+          element.style.width = '70%';
 
-        if (savedState && savedState.aiGuidedActive) {
+
+          document.getElementById("drag_drop").classList.remove("display-none")
+          document.getElementById("drag-drop-section").classList.remove("display-none")
+          document.getElementById("control-bar").classList.remove("hidden")
+
+        }
+        else if (savedState && savedState.aiGuidedActive) {
           currentStep = savedState.currentStep;
+          currentLayout = savedState.currentLayout;
           step1Text = savedState.step1Text;
           step2Text = savedState.step2Text;
           generatedSteps = savedState.generatedSteps;
@@ -2436,23 +2529,24 @@ $(document).ready(function (e) {
 
       function makeChange() {
         if (!isPinLayout && !isLikeLayout) {
-        const newState = document.querySelector("#page-container").innerHTML;
+          const newState = document.querySelector("#page-container").innerHTML;
 
-        // Keep only the last 20 states
-        while (history.length > 20) {
-          history.shift();
+          // Keep only the last 20 states
+          while (history.length > 20) {
+            history.shift();
+          }
+
+          // Truncate any future states if we're in the middle of the history
+          if (currentStateIndex < history.length - 1) {
+            history = history.slice(0, currentStateIndex + 1);
+          }
+
+          // Add the new state to the history and apply it
+          history.push(newState);
+          currentStateIndex++;
+          applyState(newState);
         }
-
-        // Truncate any future states if we're in the middle of the history
-        if (currentStateIndex < history.length - 1) {
-          history = history.slice(0, currentStateIndex + 1);
-        }
-
-        // Add the new state to the history and apply it
-        history.push(newState);
-        currentStateIndex++;
-        applyState(newState);
-      } }
+      }
 
       function undo() {
         if (currentStateIndex > 0) {
@@ -2470,6 +2564,14 @@ $(document).ready(function (e) {
         } else {
           console.log("No more states to redo");
         }
+      }
+
+      function restart() {
+        if (localStorage){
+          localStorage.clear()}
+      location.reload();
+
+
       }
 
       // Example usage:
@@ -2762,7 +2864,7 @@ $(document).ready(function (e) {
         if (element.id === 'layout-content') {
           return false;  // layout-content is not considered a child of itself
         }
-        
+
         let currentElement = element.parentElement;  // Start with the parent
         while (currentElement) {
           if (currentElement.id === 'layout-content') {
@@ -2830,11 +2932,11 @@ $(document).ready(function (e) {
         }
       }
 
-  function isChildOfLayoutContent(element) {
+      function isChildOfLayoutContent(element) {
         if (element.id === 'layout-content') {
           return false;  // layout-content is not considered a child of itself
         }
-        
+
         let currentElement = element.parentElement;  // Start with the parent
         while (currentElement) {
           if (currentElement.id === 'layout-content') {
@@ -2886,8 +2988,7 @@ $(document).ready(function (e) {
         if (!allNames.includes(createID)) {
           allNames.push(createID);
         }
-        console.log(isPinLayout)
-        console.log(isLikeLayout)
+
         if (isPinLayout || isLikeLayout) {
           if (isChildOfLayoutContent(EditItem)) {
             if (isPinLayout) {
@@ -2910,7 +3011,7 @@ $(document).ready(function (e) {
             const pointedType = currentElement.getAttribute('pointed');
 
 
-            if (pointedType === 'fix' && action === 'like' ) {
+            if (pointedType === 'fix' && action === 'like') {
               alert(`A parent of this element is already pinned. It's not possible to ${action} a child of a pinned element.`);
               return true;
             }
@@ -2921,9 +3022,9 @@ $(document).ready(function (e) {
               currentElement.removeAttribute("pointed");
               return false;
             }
-            
+
             if (action === 'like' && pointedType === 'pref') {
-              
+
               const index = likedElements.indexOf(currentElement);
               console.log(index)
               likedElements.splice(index, 1);

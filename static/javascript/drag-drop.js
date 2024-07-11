@@ -1166,9 +1166,12 @@ $(document).ready(function (e) {
         // Insert the dummy element at the determined position
         if (insertBeforeElement) {
           targetContainer.insertBefore(dummyElement, insertBeforeElement);
+          create_log_item(`copy`);
         } else {
           // If no insertBeforeElement is found (e.g., dragging below all items), append to the end
           targetContainer.appendChild(dummyElement);
+          create_log_item(`copy`);
+
         }
 
         copyTarget = targetContainer;
@@ -1240,6 +1243,7 @@ $(document).ready(function (e) {
         // Insert the dummy element at the determined position
         if (insertBeforeElement) {
           targetContainer.insertBefore(dummyElement, insertBeforeElement);
+
         } else {
           // If no insertBeforeElement is found (e.g., dragging below all items), append to the end
           targetContainer.appendChild(dummyElement);
@@ -1260,19 +1264,15 @@ $(document).ready(function (e) {
     currentLog += JSON.stringify(logEntry) + '\n';
     localStorage.setItem('experimentLog', currentLog);
   }
-  
-  function create_log_item(component, actor, actor_id, action_type, action_value) {
+
+  function create_log_item(action_type) {
     const logItem = {
       time_stamp: new Date().toLocaleString(),
-      component: component,
-      actor: actor,
-      actor_id: actor_id,
       action_type: action_type,
-      action_value: action_value
     };
-  
+    console.log(logItem)
     appendToLocalLog(logItem);
-  
+
     return logItem;
   }
 
@@ -1347,28 +1347,28 @@ $(document).ready(function (e) {
         .forEach((container) => {
           container.addEventListener("click", onClickHandler, false);
         });
-        
+
       document.getElementById("redo").addEventListener("click", redo, false);
       document.getElementById("undo").addEventListener("click", undo, false);
       document.getElementById("restart").addEventListener("click", restart, false);
-      document.getElementById('saveLogButton').addEventListener('click', function() {
+      document.getElementById('saveLogButton').addEventListener('click', function () {
         const logContent = localStorage.getItem('experimentLog') || '';
-        
+
         // Create a Blob with the log content
         const blob = new Blob([logContent], { type: 'text/plain' });
-        
+
         // Create a temporary URL for the Blob
         const url = window.URL.createObjectURL(blob);
-        
+
         // Create a link element and trigger the download
         const a = document.createElement('a');
         a.style.display = 'none';
         a.href = url;
         a.download = 'experiment_log.txt';
-        
+
         document.body.appendChild(a);
         a.click();
-        
+
         // Clean up
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
@@ -1506,6 +1506,7 @@ $(document).ready(function (e) {
           deleteButton.classList.add('delete-button', 'btn', 'btn-danger');
           deleteButton.onclick = () => {
             if (stepsContainer.childElementCount > 1) {
+              create_log_item(`delete_step`)
               deleteStepBox(stepBox);
             }
           };
@@ -1514,7 +1515,10 @@ $(document).ready(function (e) {
           const lockButton = document.createElement('button');
           lockButton.innerHTML = '<i class="fas fa-lock-open"></i>';
           lockButton.classList.add('lock-button', 'btn', 'btn-secondary');
-          lockButton.onclick = () => toggleLock(stepBox, input, lockButton);
+          lockButton.onclick = () => {
+            create_log_item(`lock_step`)
+            toggleLock(stepBox, input, lockButton);
+          };
           buttonsContainer.appendChild(lockButton);
 
 
@@ -1528,7 +1532,30 @@ $(document).ready(function (e) {
           const addButton = document.createElement('button');
           addButton.innerHTML = '<i class="fas fa-plus"></i>';
           addButton.classList.add('add-button', 'btn', 'btn-primary');
-          addButton.onclick = () => addStepBox("", stepBox);
+          addButton.onclick = () => {
+            create_log_item(`add_step`)
+            addStepBox("", stepBox);
+          };
+
+
+          // Add these lines to handle the textarea editing
+          let isEditing = false;
+          input.addEventListener('focus', function () {
+            isEditing = false;
+          });
+
+          input.addEventListener('input', function () {
+            if (!isEditing) {
+              create_log_item(`start_editing_step`);
+              isEditing = true;
+            }
+          });
+
+          input.addEventListener('blur', function () {
+            isEditing = false;
+          });
+
+
           buttons_container.appendChild(addButton);
           stepBox.appendChild(buttons_container);
 
@@ -1538,6 +1565,7 @@ $(document).ready(function (e) {
             stepsContainer.appendChild(stepBox);
           }
           updateDeleteButtonState();
+
 
           return stepBox;
         }
@@ -1600,10 +1628,18 @@ $(document).ready(function (e) {
             regenButton.classList.remove("hidden");
             luckyButton.classList.remove("hidden");
 
-            regenButton.onclick = regenerateSteps;
+
+            regenButton.onclick = function () {
+              create_log_item('regenerate_steps');
+              regenerateSteps();
+            };
+
             aiSpecsTextarea.style.display = 'none';
             nextButton.textContent = "Generate Tutor Drafts"
-            nextButton.onclick = generateLayoutDrafts;
+            nextButton.onclick = function () {
+              create_log_item('generate_layouts');
+              generateLayoutDrafts();
+            };
             backButton.style.display = 'block';
             stepsContainer.style.display = 'flex';
             // Add Regenerate button
@@ -1624,7 +1660,7 @@ $(document).ready(function (e) {
 
 
         function toggleCursor(cursorType, button) {
-          const buttons = document.querySelectorAll('.btn, .form-control');
+          const buttons = document.querySelectorAll('.btn, .form-control, .full-layout-content');
 
           if (activeCursor === cursorType) {
             // Deactivate the current cursor
@@ -1632,8 +1668,10 @@ $(document).ready(function (e) {
               btn.classList.remove(`${activeCursor}-cursor`);
             });
             if (button) {
+
               button.classList.remove('active');
             }
+            create_log_item(`exit_${activeCursor}_modality`)
             activeCursor = null;
             isPinLayout = false;
             isLikeLayout = false;
@@ -1645,6 +1683,7 @@ $(document).ready(function (e) {
               });
               const activeButton = document.querySelector('.bottom-bar button.active');
               if (activeButton) activeButton.classList.remove('active');
+              create_log_item(`exit_${activeCursor}_modality`)
             }
             // Activate the new cursor
             buttons.forEach(btn => {
@@ -1653,7 +1692,9 @@ $(document).ready(function (e) {
             if (button) {
               button.classList.add('active');
             }
+
             activeCursor = cursorType;
+            create_log_item(`enter_${activeCursor}_modality`)
             isPinLayout = cursorType === 'pinning';
             isLikeLayout = cursorType === 'liking';
 
@@ -1743,6 +1784,7 @@ $(document).ready(function (e) {
           const backButton = document.createElement('button');
           backButton.textContent = 'Back to Grid';
           backButton.onclick = function () {
+            create_log_item(`back_to_layouts`)
             hideFullLayout();
             currentLayout = false;
             saveState()
@@ -1755,6 +1797,8 @@ $(document).ready(function (e) {
           const leftArrow = document.createElement('button');
           leftArrow.textContent = '←';
           leftArrow.onclick = function () {
+            create_log_item(`previous_layout`)
+
             generatedDrafts[currentLayoutIndex] = layoutContent.innerHTML
             navigateLayout(-1);
           }
@@ -1767,6 +1811,7 @@ $(document).ready(function (e) {
           const rightArrow = document.createElement('button');
           rightArrow.textContent = '→';
           rightArrow.onclick = function () {
+            create_log_item(`next_layout`)
             generatedDrafts[currentLayoutIndex] = layoutContent.innerHTML
             navigateLayout(1);
           }
@@ -1801,12 +1846,17 @@ $(document).ready(function (e) {
 
           const useLayoutButton = document.createElement('button');
           useLayoutButton.textContent = 'Use This Layout';
-          useLayoutButton.onclick = useLayout;
+          useLayoutButton.onclick = function () {
+            create_log_item(`use_this_layout`)
+            useLayout()
+          }
+
           rightButtonGroup.appendChild(useLayoutButton);
 
           const generateFromPreferencesButton = document.createElement('button');
           generateFromPreferencesButton.textContent = 'Generate from Preferences';
           generateFromPreferencesButton.onclick = function () {
+            create_log_item(`generate_from_preferences`)
             generatedDrafts[currentLayoutIndex] = layoutContent.innerHTML
             generateFromPreferences()
           }
@@ -1847,7 +1897,7 @@ $(document).ready(function (e) {
           activeCursor = null;
           isPinLayout = false;
           isLikeLayout = false;
-          const buttons = document.querySelectorAll('.btn, .form-control');
+          const buttons = document.querySelectorAll('.btn, .form-control, .full-layout-content');
           buttons.forEach(btn => {
             btn.classList.remove('pinning-cursor', 'liking-cursor');
           });
@@ -1872,7 +1922,7 @@ $(document).ready(function (e) {
 
           // Reapply the active cursor if there is one
           if (activeCursor) {
-            const buttons = document.querySelectorAll('.btn, .form-control');
+            const buttons = document.querySelectorAll('.btn, .form-control, .full-layout-content');
             buttons.forEach(btn => {
               btn.classList.add(`${activeCursor}-cursor`);
             });
@@ -1905,6 +1955,7 @@ $(document).ready(function (e) {
             gridItem.appendChild(layoutTitle);
             gridItem.appendChild(layoutContent);
             gridItem.onclick = function () {
+              create_log_item(`show_full_layout`)
               showFullLayout(index);
               currentLayout = index
               saveState()
@@ -1983,6 +2034,7 @@ $(document).ready(function (e) {
                 gridItem.appendChild(layoutTitle);
                 gridItem.appendChild(layoutContent);
                 gridItem.onclick = function () {
+                  create_log_item(`show_full_layout`)
                   showFullLayout(index);
                   currentLayout = index
                   saveState()
@@ -2196,6 +2248,7 @@ $(document).ready(function (e) {
             var modal = document.getElementById("draftModal");
             modal.style.display = "block";
             document.getElementById("aiGuided").onclick = function () {
+              create_log_item(`aiGuided`)
               currentStep = 1
               saveState()
               load_step(currentStep);
@@ -2247,10 +2300,17 @@ $(document).ready(function (e) {
             regenButton.classList.remove("hidden");
             luckyButton.classList.remove("hidden");
 
-            regenButton.onclick = regenerateSteps;
+            regenButton.onclick = function () {
+              create_log_item('regenerate_steps');
+              regenerateSteps();
+            };
+
             aiSpecsTextarea.style.display = 'none';
             nextButton.textContent = "Generate Tutor Drafts"
-            nextButton.onclick = generateLayoutDrafts;
+            nextButton.onclick = function () {
+              create_log_item('generate_layouts');
+              generateLayoutDrafts();
+            };
             backButton.style.display = 'block';
 
             stepsContainer.style.display = 'flex';
@@ -2275,11 +2335,11 @@ $(document).ready(function (e) {
             loadLayoutDraft()
             console.log(currentLayout)
 
-            if(currentLayout || currentLayout===0){
-              
+            if (currentLayout || currentLayout === 0) {
+
               showFullLayout(currentLayout)
             }
-            
+
           }
 
 
@@ -2352,7 +2412,7 @@ $(document).ready(function (e) {
           updateStep();
         };
 
-        
+
         if (savedState && savedState.currentTutor) {
           currentTutor = savedState.currentTutor
           document.querySelector("#page-container").innerHTML = currentTutor
@@ -2383,6 +2443,7 @@ $(document).ready(function (e) {
           aiSpecsFrame.style.display = 'none';
 
           document.getElementById("aiGuided").onclick = function () {
+            create_log_item(`aiGuided`)
             currentStep = 1
             saveState()
             load_step(currentStep);
@@ -2403,6 +2464,7 @@ $(document).ready(function (e) {
           document.querySelector('.button-container').style.display = 'flex'; // Show initial buttons
           document.getElementById("aiSpecs").style.display = 'none'; // Hide AI specs
           document.getElementById("aiGuided").onclick = function () {
+            create_log_item(`aiGuided`)
             currentStep = 1
             saveState()
             load_step(currentStep);
@@ -2422,6 +2484,7 @@ $(document).ready(function (e) {
       }
       // Handle manual button
       document.getElementById("manual").onclick = function () {
+        create_log_item(`manual`)
         console.log("Manual drafting selected");
         closeModal();
       }
@@ -2567,9 +2630,10 @@ $(document).ready(function (e) {
       }
 
       function restart() {
-        if (localStorage){
-          localStorage.clear()}
-      location.reload();
+        if (localStorage) {
+          localStorage.clear()
+        }
+        location.reload();
 
 
       }
@@ -2747,41 +2811,10 @@ $(document).ready(function (e) {
           instantiateAndAddToDragonedList(newDetailsContent);
         });
 
-      function changeIDHandlerLog(event) {
-        LOG.push(
-          create_log_item(
-            "Tutor Building",
-            "Tutor",
-            TUTOR_ID,
-            "Change Element ID",
-            concat(string(EditItem.id), "->", string(event.target.value))
-          )
-        );
-      }
 
-      function changeComponentValueLog(event) {
-        LOG.push(
-          create_log_item(
-            "Tutor Building",
-            "Tutor",
-            TUTOR_ID,
-            "Change Element Value",
-            EditItem.id
-          )
-        );
-      }
 
-      function changeInputValueLog(event) {
-        LOG.push(
-          create_log_item(
-            "Tutor Building",
-            "Tutor",
-            TUTOR_ID,
-            "Change Input Value",
-            EditItem.id
-          )
-        );
-      }
+
+
 
 
 
@@ -2921,6 +2954,7 @@ $(document).ready(function (e) {
           if (isChildOfLayoutContent(EditItem)) {
             if (isPinLayout) {
               handlePinSelection(EditItem);
+
             } else {
               handleLikeSelection(EditItem);
             }
@@ -2954,15 +2988,6 @@ $(document).ready(function (e) {
           return;
         }
 
-        LOG.push(
-          create_log_item(
-            "Tutor Building",
-            "Tutor",
-            TUTOR_ID,
-            "Element Clicked",
-            event.target.id
-          )
-        );
 
         if (
           event.target.id == "page-container" ||
@@ -3049,15 +3074,19 @@ $(document).ready(function (e) {
           pinnedElements.splice(index, 1);
           element.classList.remove("pinClicked");
           element.removeAttribute("pointed");
+          create_log_item(`remove_pin_element`);
+
         } else {
           // Add element to pinned list
           pinnedElements.push(element);
+          create_log_item(`pin_element`);
           element.classList.add("pinClicked");
           element.setAttribute("pointed", "fix");
 
           // Remove preference if the element was previously preferred
           const likedIndex = likedElements.indexOf(element);
           if (likedIndex > -1) {
+            create_log_item(`remove_like_element`);
             likedElements.splice(likedIndex, 1);
             element.classList.remove("likeClicked");
           }
@@ -3092,11 +3121,14 @@ $(document).ready(function (e) {
         const index = likedElements.indexOf(element);
         if (index > -1) {
           // Element is already liked, remove it
+          create_log_item(`remove_like_element`);
           likedElements.splice(index, 1);
           element.classList.remove("likeClicked");
           element.removeAttribute("pointed");
         } else {
           // Add element to liked list
+          create_log_item(`add_like_element`);
+
           likedElements.push(element);
           element.classList.add("likeClicked");
           element.setAttribute("pointed", "pref");
@@ -3364,10 +3396,12 @@ $(document).ready(function (e) {
                 document.getElementById(data),
                 insertBeforeElement
               );
+  
             } else {
               dropTarget.appendChild(document.getElementById(data)); // Fallback to append at the end
-            }
 
+            }
+            create_log_item(`move_element`);
             makeChange();
           } else if (sourceContainer.id === "draggable") {
             var nodeCopy = document.getElementById(data).cloneNode(true);
@@ -3421,19 +3455,12 @@ $(document).ready(function (e) {
               dropTarget.appendChild(nodeCopy); // Fallback to append at the end
             }
 
+            create_log_item(`add_element`);
             makeChange();
           } else {
             //console.log("Drop Target : ", dropTarget);
           }
-          LOG.push(
-            create_log_item(
-              "Tutor Building",
-              "Tutor",
-              TUTOR_ID,
-              action_type,
-              dragItem.id
-            )
-          );
+
           dragItem.classList.remove("active");
           dropTarget = null;
           dragItem = null;
@@ -3517,33 +3544,6 @@ $(document).ready(function (e) {
     })();
   });
 });
-/**
- * Creates a log item object representing an action taken by an actor on a component.
- * This function is useful for tracking user actions or system events for auditing or debugging purposes.
- *
- * @param {string} component - The component on which the action is performed (e.g., a specific module or system part).
- * @param {string} actor - The entity performing the action (e.g., a user, system process).
- * @param {string|number} actor_id - A unique identifier for the actor.
- * @param {string} action_type - The type of action performed (e.g., "update", "delete").
- * @param {string|number} action_value - The value or outcome of the action (e.g., the new value after an update).
- * @returns {Object} An object representing the log item, including a timestamp, the component, actor, actor ID, action type, and action value.
- */
-function create_log_item(
-  component,
-  actor,
-  actor_id,
-  action_type,
-  action_value
-) {
-  return {
-    time_stamp: new Date().toLocaleString(),
-    component: component,
-    actor: actor,
-    actor_id: actor_id,
-    action_type: action_type,
-    action_value: action_value,
-  };
-}
 
 function get_request_body(
   tutor_id,

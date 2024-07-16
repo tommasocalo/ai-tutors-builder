@@ -1636,10 +1636,7 @@ $(document).ready(function (e) {
 
             aiSpecsTextarea.style.display = 'none';
             nextButton.textContent = "Generate Tutor Drafts"
-            nextButton.onclick = function () {
-              create_log_item('generate_layouts');
-              generateLayoutDrafts();
-            };
+
             backButton.style.display = 'block';
             stepsContainer.style.display = 'flex';
             // Add Regenerate button
@@ -2307,10 +2304,6 @@ $(document).ready(function (e) {
 
             aiSpecsTextarea.style.display = 'none';
             nextButton.textContent = "Generate Tutor Drafts"
-            nextButton.onclick = function () {
-              create_log_item('generate_layouts');
-              generateLayoutDrafts();
-            };
             backButton.style.display = 'block';
 
             stepsContainer.style.display = 'flex';
@@ -2391,7 +2384,12 @@ $(document).ready(function (e) {
               saveState()
               updateStep();
             }
-          } else {
+          } 
+          else if (currentStep==3){
+              create_log_item('generate_layouts');
+              generateLayoutDrafts();
+            
+          }else {
             currentStep++;
             saveState()
             updateStep();
@@ -2486,6 +2484,15 @@ $(document).ready(function (e) {
       document.getElementById("manual").onclick = function () {
         create_log_item(`manual`)
         console.log("Manual drafting selected");
+        const element = document.getElementById('playground');
+        // Remove the width style property
+        element.style.width = '70%';
+
+
+        document.getElementById("drag_drop").classList.remove("display-none")
+        document.getElementById("drag-drop-section").classList.remove("display-none")
+        document.getElementById("control-bar").classList.remove("hidden")
+
         closeModal();
       }
 

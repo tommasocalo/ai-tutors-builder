@@ -11,3 +11,4 @@ jsondiff
 scipy==1.11.2
 gunicorn
 openai
+bs4

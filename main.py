@@ -54,8 +54,12 @@ def get_prompt():
     with open('prompt.txt', 'r') as file:
         return file.read().strip()
 
-# Usage
-openai.api_key = get_openai_key()
+# First, check if the environment variable is defined
+openai_api_key = os.getenv('OPENAI_API_KEY')
+if not openai_api_key:
+    openai_api_key = get_openai_key()
+
+openai.api_key = openai_api_key
 input_prompt = get_prompt()
 
 
